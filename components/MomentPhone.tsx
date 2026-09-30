@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { DemoAction } from "@/lib/demoActions";
-import { assessPayment, idleSurplus, MOMENT_BY_ID, MOMENTS, projectedGap, type MomentId, type SignalGroup } from "@/lib/moments";
+import { assessPayment, forecast, idleSurplus, MOMENT_BY_ID, MOMENTS, projectedGap, type MomentId, type SignalGroup } from "@/lib/moments";
 import type { Decision } from "@/lib/orchestrator";
 import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
@@ -104,6 +104,7 @@ export function MomentPhone({
                     <div className="mt-2 rounded-xl bg-good-soft p-2 text-[12px] text-good">An advisor will call you. They already have a short brief, so you won't have to repeat yourself.</div>
                   )}
                   {GOAL_MOMENTS.includes(m.id) && <GoalFill customer={c} />}
+                  {m.id === "cash_crunch" && <ForecastLine customer={c} />}
                   {confirm && confirm.kind === "transfer_from_savings" ? (
                     <div className="mt-3 rounded-lg bg-surface-2 p-3 text-[13px]">
                       <div>Move <b>{eur(confirm.amount)}</b> from savings ({eur(c.savingsBalance)}) to your current account?</div>
@@ -253,6 +254,27 @@ function ScamGuard({ customer: c, score, factors, onWhy, onOutcome }: { customer
         )}
       </div>
     </div>
+  );
+}
+
+function ForecastLine({ customer: c }: { customer: Customer }) {
+  const f = forecast(c);
+  const W = 300, H = 70, pad = 4;
+  const max = Math.max(...f, 0), min = Math.min(...f, 0);
+  const x = (i: number) => pad + (i / (f.length - 1)) * (W - pad * 2);
+  const y = (v: number) => pad + ((max - v) / (max - min || 1)) * (H - pad * 2);
+  const neg = f.findIndex((v) => v < 0);
+  const pts = f.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  return (
+    <figure className="mt-3">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Balance forecast for the next 30 days">
+        <rect x={0} y={y(0)} width={W} height={Math.max(0, H - y(0))} fill="var(--color-crit-soft)" />
+        <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="var(--color-crit)" strokeDasharray="3 3" strokeWidth={1} />
+        <polyline points={pts} fill="none" stroke="var(--color-brand)" strokeWidth={2} strokeLinejoin="round" />
+        {neg > 0 && <circle cx={x(neg)} cy={y(f[neg])} r={4} fill="var(--color-crit)" />}
+      </svg>
+      <figcaption className="flex justify-between text-[11px] text-ink-3"><span>Today</span><span>30-day forecast</span><span>+30 days</span></figcaption>
+    </figure>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ControlRoom } from "@/components/ControlRoom";
 import { MomentPhone } from "@/components/MomentPhone";
+import { AttentionRace } from "@/components/AttentionRace";
 import { MOMENT_BY_ID } from "@/lib/moments";
 import { decide, POLICY } from "@/lib/orchestrator";
 import { accumulate, applyPatch, type Consent, type Patch, type PassStats } from "@/lib/pass";
@@ -68,7 +69,7 @@ export default function Page() {
           <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={openCustomer} />
         </main>
       ) : (
-        <main id="main" className="mx-auto grid max-w-[1200px] items-start gap-8 px-5 pb-10 pt-4 lg:grid-cols-[1fr_390px_1fr] lg:px-10">
+        <main id="main" className="mx-auto grid max-w-[1200px] items-start gap-8 px-5 pb-10 pt-4 lg:grid-cols-[minmax(0,0.9fr)_390px_minmax(0,1.1fr)] lg:px-10">
           <section aria-label="Customers" className="order-2 lg:order-1">
             <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">Five people, five different mornings</h1>
             <p className="mt-2 max-w-sm text-[15px] text-ink-2">Same engine, same rules. Pick someone and their app adapts to what is going on in their life.</p>
@@ -96,7 +97,7 @@ export default function Page() {
             <p className="text-center text-[12px] text-ink-3">Hackathon prototype, not an official KBC app. Synthetic data.</p>
           </div>
 
-          <section aria-label="What is happening" className="order-3 lg:pt-16">
+          <section aria-label="What is happening" className="order-3">
             <h2 className="text-[20px] font-bold">{live ? `Right now, ${first} is paying someone` : `Next morning, in ${first}'s app`}</h2>
             <p className="mt-2 text-[15px] text-ink-2">
               {live
@@ -105,12 +106,7 @@ export default function Page() {
                   ? "Last night the engine looked at every signal, found what matters most for this person, and chose one message. Everything else waited."
                   : "Last night the engine found nothing worth an interruption. Silence is a feature."}
             </p>
-            <dl className="mt-5 space-y-3 text-[14px]">
-              <div><dt className="text-ink-3">Moments found</dt><dd className="font-semibold">{decision.detections.length}</dd></div>
-              <div><dt className="text-ink-3">Shown</dt><dd className="font-semibold">{decision.chosen ? MOMENT_BY_ID[decision.chosen.momentId].label : "Nothing"}</dd></div>
-              <div><dt className="text-ink-3">Held back</dt><dd className="font-semibold">{decision.held.length}</dd></div>
-              <div><dt className="text-ink-3">Attention budget</dt><dd className="font-semibold">{Math.min(decision.budget.used, decision.budget.size)} of {decision.budget.size} used this week</dd></div>
-            </dl>
+            <div className="mt-6"><AttentionRace decision={decision} name={first} /></div>
             <button onClick={() => setView("kbc")} className="mt-6 text-[14px] font-semibold text-accent underline underline-offset-4">See how this runs for 2.3 million customers</button>
           </section>
         </main>

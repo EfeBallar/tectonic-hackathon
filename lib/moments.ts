@@ -168,7 +168,7 @@ export const MOMENTS: MomentDef[] = [
         evidence: [
           { group: "money", text: `Balance ${eur(c.checking)}; ${eur(c.upcomingOutflows)} in direct debits due in ${c.billsDueInDays} days` },
           { group: "money", text: `Usual spending ${eur(c.dailySpend)}/day (last months' trend), salary in ${c.daysToPayday} days` },
-          ...(day !== null ? [{ group: "money" as const, text: `Forecast: balance goes below zero in ${day} days, ${eur(gap)} short at the lowest point` }] : []),
+          ...(day !== null ? [{ group: "money" as const, text: `30-day forecast: below zero in ${day} days, ${eur(gap)} short at the lowest point` }] : []),
         ],
       };
     },
@@ -415,14 +415,33 @@ export function monthlyExpenses(c: Customer): number {
 export function idleSurplus(c: Customer): number {
   return Math.round((c.savingsBalance - 3 * monthlyExpenses(c)) / 10) * 10;
 }
-/** Day (from today) the balance first goes below zero before payday, or null. */
-export function negativeInDays(c: Customer): number | null {
-  for (let d = 1; d <= c.daysToPayday; d++) {
-    const bal = c.checking - c.dailySpend * d - (d >= Math.max(1, c.billsDueInDays) ? c.upcomingOutflows : 0);
-    if (bal < 0) return d;
+export const FORECAST_DAYS = 30;
+
+/**
+ * 30-day balance forecast (PM: "the engine runs on a 30-day forecast, not just today").
+ * Day 0 = today. Usual daily spending every day, known direct debits on their due day and again a
+ * month later, salary on payday. Cheap enough to run for every customer every night.
+ */
+export function forecast(c: Customer): number[] {
+  const out = [c.checking];
+  let bal = c.checking;
+  const billDay = Math.max(1, c.billsDueInDays);
+  for (let d = 1; d <= FORECAST_DAYS; d++) {
+    bal -= c.dailySpend;
+    if (d === billDay || d === billDay + 30) bal -= c.upcomingOutflows;
+    if (d === c.daysToPayday || d === c.daysToPayday + 30) bal += c.salaryNow;
+    out.push(bal);
   }
-  return null;
+  return out;
 }
+
+/** Day the balance first goes below zero within the forecast window, or null. */
+export function negativeInDays(c: Customer): number | null {
+  const f = forecast(c);
+  const d = f.findIndex((b) => b < 0);
+  return d > 0 ? d : null;
+}
+
 function dateIn(days: number): number {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -433,10 +452,10 @@ function ordinal(n: number): string {
   return `${n}${s}`;
 }
 
-/** Shortfall at the lowest point before payday, rounded UP so a suggested transfer always covers it. */
+/** Shortfall at the lowest point of the 30-day forecast, rounded UP so a suggested transfer always covers it. */
 export function projectedGap(c: Customer): number {
-  const gap = c.upcomingOutflows + c.dailySpend * c.daysToPayday - c.checking;
-  return gap > 0 ? Math.ceil(gap / 10) * 10 : 0;
+  const low = Math.min(...forecast(c));
+  return low < 0 ? Math.ceil(-low / 10) * 10 : 0;
 }
 
 export function detectAll(c: Customer): Detection[] {
