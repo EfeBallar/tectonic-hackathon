@@ -1,4 +1,4 @@
-# Kate
+# Ahead
 
 A bank knows a lot about its customers. The hard part is saying one useful thing at the right moment, and staying quiet the rest of the time.
 
