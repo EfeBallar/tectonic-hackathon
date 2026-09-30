@@ -18,6 +18,21 @@ A bank knows a lot about its customers. The hard part is saying one useful thing
 - **Talks.** Gemini writes the message, ElevenLabs reads it aloud, and customers can talk to Kate by voice.
 - **Scales.** The same engine runs over 2.3M synthetic customers.
 
+## Screenshots
+
+Synthetic data only. Hackathon prototype, not an official KBC app.
+
+| | |
+|---|---|
+| ![Scam guard: Noor's payment to a "safe account" is paused while a call and AnyDesk are active](docs/screenshots/explore-scam-guard-noor.png) | ![Idle savings: Pieter's one message of the morning, with the attention race on the right](docs/screenshots/explore-idle-savings-pieter.png) |
+| **Scam guard.** Protection skips the attention budget. | **One message a morning.** Priority = urgency × confidence × relevance − interruption cost. |
+| ![Savings goal sheet: €4,100 put to work for a kid's university fund](docs/screenshots/explore-savings-goal-pieter.png) | ![Live on Google Cloud: a growing-family nudge chosen by kate-engine and written by Gemini](docs/screenshots/live-gcp-growing-family-nudge.png) |
+| **Approved action.** Nothing moves until the customer confirms. | **Live on GCP.** Cloud Run, Firestore, BigQuery, Pub/Sub, Gemini, ElevenLabs. |
+
+![At scale: 2.3 million customers ranked in about 24 seconds, with what it caught and what it refuses to detect](docs/screenshots/at-scale-nightly-run.png)
+
+**At scale.** Every customer, every night: one best action, or none. See also the [quiet state](docs/screenshots/live-gcp-all-calm.png): silence is a feature.
+
 ## Structure
 
 | Path | What |
