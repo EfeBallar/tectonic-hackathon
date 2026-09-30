@@ -40,7 +40,8 @@ export default function Page() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col-reverse lg:flex-row">
+    <main className="flex min-h-[100dvh] flex-col-reverse lg:flex-row">
+      <a href="#main" className="skip-link">Skip to the control room</a>
       <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={setSelectedId} />
       <aside className="flex flex-col items-center gap-3 bg-page px-4 py-8 lg:sticky lg:top-0 lg:h-screen lg:w-[480px] lg:shrink-0 lg:overflow-y-auto">
         <div className="w-full max-w-[390px]">

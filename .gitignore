@@ -8,3 +8,6 @@ preview/dist
 .DS_Store
 .env
 *.tsbuildinfo
+.agents/
+.claude/skills/
+skills-lock.json

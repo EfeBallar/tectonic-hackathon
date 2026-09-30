@@ -29,21 +29,36 @@ const monthName = (months: number) => {
   return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 };
 
-export function GoalShape({ shape, pct, size = 120 }: { shape: Shape; pct: number; size?: number }) {
+export function GoalShape({ shape, pct, size = 120, coinKey }: { shape: Shape; pct: number; size?: number; coinKey?: number }) {
   const id = useId().replace(/:/g, "");
   const level = 100 - Math.max(0, Math.min(1, pct)) * 100;
   const path = SHAPES[shape];
+  // a repeating wave, twice as wide as the shape, drifting sideways
+  let wave = `M0 0`;
+  for (let x = 0; x <= 150; x += 25) wave += ` Q ${x + 12.5} -4 ${x + 25} 0`;
+  wave += ` L 175 120 L 0 120 Z`;
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`${Math.round(pct * 100)}% saved`}>
+    <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`${Math.round(pct * 100)}% saved`} className="overflow-visible">
       <defs>
         <clipPath id={`clip-${id}`}><path d={path} /></clipPath>
+        <linearGradient id={`liq-${id}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#3fb57f" />
+          <stop offset="1" stopColor="#1f8a5b" />
+        </linearGradient>
       </defs>
       <path d={path} fill="var(--color-accent-soft)" />
       <g clipPath={`url(#clip-${id})`}>
-        <rect x="0" y={level} width="100" height={100 - level} fill="var(--color-calm)" style={{ transition: "y 0.8s cubic-bezier(.2,.8,.2,1), height 0.8s cubic-bezier(.2,.8,.2,1)" }} />
-        <path d={`M0 ${level} Q 12.5 ${level - 3} 25 ${level} T 50 ${level} T 75 ${level} T 100 ${level}`} fill="none" stroke="#7fd1a8" strokeWidth="2" style={{ transition: "d 0.8s" }} />
+        <g style={{ transform: `translateY(${level}px)`, transition: "transform 0.9s cubic-bezier(.34,1.3,.5,1)" }}>
+          <path className="goal-wave" d={wave} fill={`url(#liq-${id})`} />
+        </g>
       </g>
       <path d={path} fill="none" stroke="var(--color-brand)" strokeWidth="2.5" strokeLinejoin="round" />
+      {coinKey !== undefined && coinKey > 0 && (
+        <g key={coinKey} className="coin" style={{ transformOrigin: "50px 10px" }}>
+          <circle cx="50" cy="10" r="6" fill="#f2c14e" stroke="#b8871b" strokeWidth="1.2" />
+          <text x="50" y="12.6" textAnchor="middle" fontSize="7" fontWeight="800" fill="#8a6412">€</text>
+        </g>
+      )}
     </svg>
   );
 }
@@ -61,7 +76,9 @@ export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: C
   const surplus = Math.max(0, idleSurplus(c));
   const [moveIdle, setMoveIdle] = useState(surplus > 0);
   const [monthly, setMonthly] = useState(Math.max(25, Math.round((c.salaryNow * 0.08) / 25) * 25));
-  const start = moveIdle ? Math.min(surplus, goal.target) : 0;
+  const [coin, setCoin] = useState(0);
+  const [preview, setPreview] = useState(0); // months fast-forwarded in the preview
+  const start = Math.min(goal.target, (moveIdle ? Math.min(surplus, goal.target) : 0) + preview * monthly);
   const pct = start / goal.target;
   const months = Math.max(0, Math.ceil((goal.target - start) / monthly));
   const nextMilestone = [0.25, 0.5, 0.75, 1].findIndex((m) => pct < m);
@@ -78,14 +95,14 @@ export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: C
 
         <div className="mt-3 flex gap-1.5">
           {options.map((o) => (
-            <button key={o.id} onClick={() => setGoal(o)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${goal.id === o.id ? "bg-brand text-white" : "bg-surface-2 text-ink-2"}`}>
+            <button key={o.id} onClick={() => { setGoal(o); setPreview(0); }} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${goal.id === o.id ? "bg-brand text-white" : "bg-surface-2 text-ink-2"}`}>
               {o.label}
             </button>
           ))}
         </div>
 
         <div className="mt-4 flex items-center gap-4">
-          <GoalShape shape={goal.shape} pct={pct} size={128} />
+          <GoalShape shape={goal.shape} pct={pct} size={128} coinKey={coin} />
           <div>
             <div className="tabular text-[34px] font-extrabold leading-none">{Math.round(pct * 100)}%</div>
             <div className="text-[13px] text-ink-2">{eur(start)} of {eur(goal.target)}</div>
@@ -97,7 +114,7 @@ export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: C
           {goal.milestones.map((m, i) => {
             const reached = pct >= (i + 1) * 0.25;
             return (
-              <li key={m} className={`rounded-md px-1 py-1.5 ${reached ? "bg-good-soft font-semibold text-good" : i === nextMilestone ? "bg-accent-soft text-brand" : "bg-surface-2 text-ink-3"}`}>
+              <li key={`${m}-${reached}`} className={`${reached ? "milestone-pop " : ""}rounded-md px-1 py-1.5 ${reached ? "bg-good-soft font-semibold text-good" : i === nextMilestone ? "bg-accent-soft text-brand" : "bg-surface-2 text-ink-3"}`}>
                 {m}
               </li>
             );
@@ -109,9 +126,17 @@ export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: C
 
         <label className="mt-4 block text-[14px] font-semibold" htmlFor="monthly">Every month, the day your salary lands</label>
         <div className="flex items-center gap-3">
-          <input id="monthly" type="range" min={25} max={600} step={25} value={monthly} onChange={(e) => setMonthly(Number(e.target.value))} className="flex-1 accent-[var(--color-calm)]" />
+          <input id="monthly" type="range" min={25} max={600} step={25} value={monthly} onChange={(e) => { setMonthly(Number(e.target.value)); setCoin((k) => k + 1); }} className="flex-1 accent-[var(--color-calm)]" />
           <span className="tabular w-16 text-right text-[15px] font-bold">{eur(monthly)}</span>
         </div>
+
+        <button
+          onClick={() => { setPreview((p) => p + 1); setCoin((k) => k + 1); }}
+          disabled={pct >= 1}
+          className="mt-3 text-[13px] font-semibold text-accent disabled:text-ink-3"
+        >
+          {pct >= 1 ? "Goal reached in this preview" : `Preview: add month ${preview + 1}`}
+        </button>
 
         {surplus > 0 && (
           <label className="mt-3 flex items-center gap-2 text-[14px]">

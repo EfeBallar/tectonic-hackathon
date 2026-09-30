@@ -89,7 +89,7 @@ export function ControlRoom({
   const filterName = filter === "none" ? "Nothing worth saying" : HOLDS.find((h) => h.id === filter)?.label ?? MOMENTS.find((m) => m.id === filter)?.label;
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col gap-10 bg-night px-5 py-8 text-white lg:px-10">
+    <section id="main" className="night-surface flex min-w-0 flex-1 flex-col gap-10 px-5 py-8 text-white lg:px-10">
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-xl">
           <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-tight">Tonight at KBC</h1>
