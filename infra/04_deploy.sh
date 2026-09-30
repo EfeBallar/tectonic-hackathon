@@ -25,10 +25,14 @@ COMMON_ENV="GCP_PROJECT_ID=$GCP_PROJECT_ID;GCP_REGION=$GCP_REGION;BQ_DATASET=$BQ
 ENGINE_URL="$(service_url "$ENGINE_SERVICE")"
 ENGINE_ENV="APP=engine;$COMMON_ENV;GEMINI_MODEL=$GEMINI_MODEL;GEMINI_LOCATION=$GEMINI_LOCATION;GEMINI_THINKING_LEVEL=$GEMINI_THINKING_LEVEL;PUSH_SERVICE_ACCOUNT=$SA_PUSH"
 [[ -n "$ENGINE_URL" ]] && ENGINE_ENV="$ENGINE_ENV;PUSH_AUDIENCE=$ENGINE_URL"
+ENGINE_SECRETS=()
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then  # Gemini API instead of Vertex AI
+  ENGINE_SECRETS=(--update-secrets="GEMINI_API_KEY=$SECRET_GEMINI:latest")
+fi
 log "Deploying $ENGINE_SERVICE"
 "${GC[@]}" run deploy "$ENGINE_SERVICE" --image="$IMAGE" --region="$GCP_REGION" \
   --service-account="$SA_ENGINE" --no-allow-unauthenticated \
-  --update-env-vars="^;^$ENGINE_ENV" \
+  --update-env-vars="^;^$ENGINE_ENV" "${ENGINE_SECRETS[@]}" \
   --cpu=1 --memory=512Mi --concurrency=20 --min-instances="$MIN_INSTANCES" --max-instances=10 --timeout=120
 if [[ -z "$ENGINE_URL" ]]; then  # first deploy: the URL (= expected token audience) is only known now
   ENGINE_URL="$(service_url "$ENGINE_SERVICE")"

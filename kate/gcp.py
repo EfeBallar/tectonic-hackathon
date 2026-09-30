@@ -37,5 +37,7 @@ def genai_client():
     from google import genai
 
     s = get_settings()
+    if s.gemini_api_key:  # Gemini API (AI Studio key), for projects where Vertex AI is blocked
+        return genai.Client(api_key=s.gemini_api_key)
     # location "eu"/"us" resolves to the multi-region endpoint (aiplatform.eu.rep.googleapis.com)
     return genai.Client(vertexai=True, project=s.gcp_project_id, location=s.gemini_location)

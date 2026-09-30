@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.5-flash"
     gemini_location: str = "eu"
     gemini_thinking_level: str = "low"
+    # Set when Vertex AI is not available: Gemini is then called through the Gemini API with this key.
+    gemini_api_key: str = ""
 
     # Secrets (Secret Manager on Cloud Run, .env locally)
     session_signing_key: str = ""

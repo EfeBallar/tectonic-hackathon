@@ -12,7 +12,9 @@ log "Generating $N_CUSTOMERS synthetic customers and their transactions"
 "$PY" -m kate.ops.run_sql sql/population.sql --var "N_CUSTOMERS=$N_CUSTOMERS"
 log "Detecting life moments across the whole base"
 "$PY" -m kate.ops.run_sql sql/batch_signals.sql
-if [[ -z "${SKIP_AI:-}" ]]; then
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+  log "Skipping AI.GENERATE: it needs Vertex AI, and this project uses a Gemini API key"
+elif [[ -z "${SKIP_AI:-}" ]]; then
   log "Gemini writes a sample of personalised messages from SQL (AI.GENERATE)"
   "$PY" -m kate.ops.run_sql sql/batch_nudges.sql --var "SAMPLE_PER_SIGNAL=${SAMPLE_PER_SIGNAL:-25}"
 fi

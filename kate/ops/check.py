@@ -26,7 +26,8 @@ def check_pubsub(s):
 
 def check_gemini(s):
     response = gcp.genai_client().models.generate_content(model=s.gemini_model, contents="Reply with the word OK.")
-    return f"{s.gemini_model} @ {s.gemini_location} answered {response.text.strip()[:20]!r}"
+    backend = "Gemini API key" if s.gemini_api_key else f"Vertex AI @ {s.gemini_location}"
+    return f"{s.gemini_model} via {backend} answered {response.text.strip()[:20]!r}"
 
 
 def main() -> None:

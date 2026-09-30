@@ -50,6 +50,7 @@ SECRET_SESSION_KEY="kate-session-signing-key"
 SECRET_TOOL="kate-tool-shared-secret"
 SECRET_DEMO_CODE="kate-demo-access-code"
 SECRET_ELEVENLABS="kate-elevenlabs-api-key"
+SECRET_GEMINI="kate-gemini-api-key"
 
 PY="$ROOT_DIR/.venv/bin/python"
 GC=(gcloud --project="$GCP_PROJECT_ID" --quiet)

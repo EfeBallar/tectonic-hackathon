@@ -39,7 +39,14 @@ elif ! "${GC[@]}" secrets describe "$SECRET_ELEVENLABS" >/dev/null 2>&1; then
   die "Put ELEVENLABS_API_KEY in .env (it is stored in Secret Manager, never in git)"
 fi
 
-# Only kate-api reads secrets, and only these four.
+# Optional: Gemini API key for projects where Vertex AI is blocked. Only kate-engine may read it.
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+  set_secret "$SECRET_GEMINI" "$GEMINI_API_KEY"
+  "${GC[@]}" secrets add-iam-policy-binding "$SECRET_GEMINI" \
+    --member="serviceAccount:$SA_ENGINE" --role=roles/secretmanager.secretAccessor >/dev/null
+fi
+
+# kate-api reads these four secrets and nothing else.
 for secret in "$SECRET_SESSION_KEY" "$SECRET_TOOL" "$SECRET_DEMO_CODE" "$SECRET_ELEVENLABS"; do
   "${GC[@]}" secrets add-iam-policy-binding "$secret" \
     --member="serviceAccount:$SA_API" --role=roles/secretmanager.secretAccessor >/dev/null
