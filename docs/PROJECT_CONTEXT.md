@@ -103,48 +103,67 @@ eligible submission work. This note is not a conclusion that reuse is prohibited
 
 ## PM input
 
-### PM notes, round 1 (received 19:20, verbatim)
+### PM notes, latest (round 3, received ~20:05; supersedes rounds 1-2)
 
-```
-1. Signals: what do we observe?
-Money:
-  Transactions, Payees, New payees, Blacklisted payees, Suspect Payees,
-  Amounts (large), Recurring charges, New domiciliations, Changes in amount,
-  Change of usual currency
-Behavior:
-  app usage, Change in app usage trend, time of day, Hesitation, repeated attempts
-Context:
-  Device, active phone call, remote-access app, Location, Card coming to expiration
-Life:
-  salary change, new address, new dependents, New loan
+**1. Signals**
+- Money: transactions, payees, new payees, blacklisted payees, suspect payees, large
+  amounts, recurring charges, new domiciliations, changes in amount, change of usual currency.
+- Behavior: app usage, change in app usage trend, time of day, hesitation, repeated attempts.
+- Context: device, active phone call, remote-access app, location, card coming to
+  expiration, incidents opened by the user lately.
+- Life: salary change, new address, new dependents, new loan.
 
-2. Recognition: who is the customer right now?
-Static persona: Life, Money (1/2)
-Live State: Money (1/2), Behavior, Context
+**2. Recognition:** static persona = life + half of money; live state = other half of
+money + behavior + context.
 
-3. Moments: when does it matter?
-
-PROTECTING FROM SCAMS!!
-User needs to feel as much confidence in the service as they do when they're
-on a call with an employee.
-```
-
-### PM notes, round 2 (received 19:45, section 3 "Moments", summarized faithfully)
-
-- **Protecting from scams** (hero): confidence like being on a call with a KBC employee.
+**3. Moments**
+- **Protecting from scams (hero):** the customer should feel as much confidence as on a
+  call with a KBC employee.
 - **Stabilising money / overdraft coming:** predict the account going negative before it
-  does, from domiciliations, spending trends of past months and salary timing; a usual
-  bill higher than usual; a domiciliation amount changed; the same bill paid twice in a
-  short span (same amount, same beneficiary).
-- **Growing money:** idle money -> propose savings plans; set a savings goal; gamify the
-  goal per customer (e.g. older customers: a house/car/object that fills up with % saved).
-- **Transitions:** first job or job change: model the spending trend change and the
-  salary split spent/saved.
-- More coming; PM's working doc is a Google Doc (not readable by agents, paste content).
+  does (domiciliations, spending trends, salary timing); a usual bill higher than usual;
+  a domiciliation amount changed; the same bill paid twice in a short span (same amount,
+  same beneficiary); signal the first time a recurring payment is about to run so the
+  customer can cancel it, then repeat that randomly once in a while.
+- **Growing money:** idle money -> savings plans; savings goal; gamify it per customer
+  (older: a house/car/object that fills up with % saved).
+- **Transitions:** first job or job change (model spending trend change and % of salary
+  spent/saved); big purchases like a house or car (show the effect on upcoming spending
+  and saving); a baby; retirement; sending a kid to university.
 
-Mapping to code (`lib/moments.ts`): scam_in_progress + card_fraud (protect),
-cash_crunch = overdraft coming, bill_increase, duplicate_bill, idle_cash, salary_rise,
-first_job. Savings-goal gamification: not built yet (UI backlog).
+**5. Channel:** app card, push notification, voice (ElevenLabs) or a human advisor.
+Decide the rule for escalating from one channel to the next.
+
+**6. Scale:** cheap rules detect signals for everyone; the LLM only runs on flagged
+moments. Decide that split.
+
+**7. Trust:** a "Why am I seeing this?" line on every card; customer controls (turn a
+moment type off); a trusted contact, only with consent.
+
+**Out-of-the-box idea: Kate's Attention Budget.** Banks treat every notification as
+free, so customers ignore all of them, including the one that matters. Each customer
+gets a limited attention budget (e.g. 3 interruptions a week). Every moment competes:
+`priority = urgency x confidence x relevance(to this customer) - interruption cost`.
+Only the top moment is shown; the rest wait or are dropped. Relevance is learned per
+customer (ignored savings nudges score lower over time). Scam moments bypass the budget.
+The engine runs on a 30-day balance forecast, so "overdraft on the 26th" is found early.
+Pitch: new way of thinking ("Kate spends attention like money"), scales like a feed
+ranking system, uncrowded UI (one thing at a time).
+
+(Point 4 was not included in the notes received.)
+
+### Status vs PM notes (Claude, 20:05)
+
+Built and running (`lib/moments.ts`, `lib/orchestrator.ts`, UI): scam guard with most
+listed signals, card fraud, overdraft coming, bill increase, duplicate bill, idle money
+with fill-up goal, first job, raise, moving, new dependent, card expiring, consent
+toggles, "why am I seeing this", full 2.3M synthetic pass in the browser.
+
+Next (proposed): replace the fixed 1-per-7-days rule with the Attention Budget formula
+and learned relevance; add first-recurring-payment notice, "incidents opened" signal,
+big purchase / retirement / kid to uni moments, per-moment-type off switch, trusted
+contact, channel escalation rule (app card -> push -> voice -> advisor); make the phone
+the hero and the control room a smaller "how it works for 2.3M" panel.
+Product name: undecided, chosen at the end.
 
 ### Interpretation (Claude, to confirm with PM)
 
@@ -158,10 +177,10 @@ first_job. Savings-goal gamification: not built yet (UI backlog).
 
 ### Still open
 
-- Section 3 (which moments besides scams) is not filled in yet.
-- Whether scams are the whole product or the hero moment inside a broader
-  moments engine.
-- Response style for a suspected scam (pause + explain, call-back, human handoff).
+- Control room: keep as a secondary "how it works for 2.3M" panel (Claude's proposal), or drop?
+- Attention budget size (PM example: 3 interruptions/week) and what "relevance" learns from.
+- Channel escalation rule: proposed app card -> push -> voice (ElevenLabs) -> advisor.
+- Product name: decided at the end.
 
 ## Suggested working order
 

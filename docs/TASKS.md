@@ -31,7 +31,7 @@ Lead / integrator: **Claude Code**. Codex: security + docs + review.
 
 ## Codex tasks
 
-- [ ] X1 Security hardening of API routes (see SPEC section 5): new `lib/security.ts` with body size limit (200 KB), same-origin check, in-memory per-IP rate limit (30/min), input validation (question string <= 500 chars, state fields typed/bounded, arrays capped), generic errors. Apply to `app/api/ask` and `app/api/explain`. Delete `app/api/tts` and its references in files you own (report references in Claude files under Requests).
+- [ ] X1 Security hardening of API routes (see SPEC section 5): new `lib/security.ts` with body size limit (200 KB), same-origin check, in-memory per-IP rate limit (30/min), input validation (question string <= 500 chars, state fields typed/bounded, arrays capped), generic errors. Apply to `app/api/ask` and `app/api/explain`. Do NOT delete `app/api/tts`: a teammate is building ElevenLabs/GCP infra.
 - [ ] X2 `next.config.mjs` security headers (CSP that still allows Next dev + inline styles, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy). Verify `npm run dev` page still loads with no CSP console errors.
 - [ ] X3 Run `npm audit` and report (do NOT install; put the needed bump under Requests, Claude applies it).
 - [ ] X4 `README.md` rewrite per SPEC section 6. Use placeholders like `{{N_CUSTOMERS}}` and `{{THROUGHPUT}}` for numbers until Claude fills them. Include security section + prep boilerplate disclosure.
