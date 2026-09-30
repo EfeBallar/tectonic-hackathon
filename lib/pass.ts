@@ -16,6 +16,11 @@ export interface Consent {
 export interface Patch {
   consent?: Consent;
   relevance?: Record<string, number>;
+  balances?: { checking: number; savings: number };
+  resolved?: string[];
+  used?: number; // interruptions consumed in this demo session
+  goal?: Customer["goal"];
+  log?: string[];
 }
 
 export type SampleKey = MomentId | "none" | HoldReason;
@@ -52,11 +57,22 @@ function sample(s: PassStats, k: SampleKey, id: number) {
 
 export function applyPatch(c: Customer, p?: Patch): Customer {
   if (!p) return c;
-  return { ...c, consent: p.consent ?? c.consent, relevance: { ...c.relevance, ...p.relevance } };
+  return {
+    ...c,
+    consent: p.consent ?? c.consent,
+    relevance: { ...c.relevance, ...p.relevance },
+    checking: p.balances?.checking ?? c.checking,
+    savingsBalance: p.balances?.savings ?? c.savingsBalance,
+    interruptionsThisWeek: c.interruptionsThisWeek + (p.used ?? 0),
+    resolved: p.resolved ?? c.resolved,
+    goal: p.goal ?? c.goal,
+    log: p.log ?? c.log,
+  };
 }
 
 /** Add (sign = 1) or remove (sign = -1) one customer's decision from the totals. */
 export function accumulate(s: PassStats, c: Customer, d: Decision, sign: 1 | -1 = 1) {
+  if (sign < 0) for (const k of Object.keys(s.samples) as SampleKey[]) s.samples[k] = s.samples[k]!.filter((x) => x !== c.id);
   s.scanned += sign;
   if (d.detections.length) s.detected += sign;
   s.moments += sign * d.detections.length;

@@ -79,7 +79,9 @@ export function score(c: Customer, d: Detection): Scored {
   return { momentId: d.momentId, confidence: d.confidence, urgency, relevance, cost, priority, bypass: m.pillar === "protect" };
 }
 
-export function decide(c: Customer, opts: { budget?: number } = {}, detections: Detection[] = detectAll(c)): Decision {
+export function decide(c: Customer, opts: { budget?: number } = {}, all: Detection[] = detectAll(c)): Decision {
+  // moments the customer already acted on or dismissed this week don't come back
+  const detections = c.resolved?.length ? all.filter((d) => !c.resolved!.includes(d.momentId)) : all;
   const size = opts.budget ?? POLICY.weeklyBudget;
   const used = c.interruptionsThisWeek;
   const held: Held[] = [];

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { assessPayment, idleSurplus, MOMENT_BY_ID, MOMENTS, type SignalGroup } from "@/lib/moments";
+import type { DemoAction } from "@/lib/demoActions";
+import { assessPayment, idleSurplus, MOMENT_BY_ID, MOMENTS, projectedGap, type MomentId, type SignalGroup } from "@/lib/moments";
 import type { Decision } from "@/lib/orchestrator";
 import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
@@ -24,18 +25,17 @@ export function MomentPhone({
   customer,
   decision,
   onConsent,
-  onFeedback,
+  onAct,
 }: {
   customer: Customer;
   decision: Decision;
   onConsent: (c: Consent) => void;
-  onFeedback: (momentId: string, acted: boolean) => void;
+  onAct: (a: DemoAction) => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
   const [why, setWhy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
-  const [goalSet, setGoalSet] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<DemoAction | null>(null);
   const c = customer;
   const chosen = decision.chosen;
   const m = chosen ? MOMENT_BY_ID[chosen.momentId] : null;
@@ -43,6 +43,20 @@ export function MomentPhone({
   const guard = assessPayment(c);
   const scamLive = chosen?.momentId === "scam_in_progress" && guard && (guard.tier === "pause" || guard.tier === "block");
   const first = c.name.split(" ")[0];
+
+  function primary(id: MomentId, cta: string) {
+    if (GOAL_MOMENTS.includes(id)) return setGoalOpen(true);
+    if (id === "cash_crunch") {
+      const gap = projectedGap(c);
+      if (c.savingsBalance >= gap) return setConfirm({ kind: "transfer_from_savings", momentId: id, amount: gap });
+      return onAct({ kind: "ack", momentId: id, text: "Kate will go through your upcoming payments with you (chat not part of this demo)." });
+    }
+    if (id === "duplicate_bill") {
+      const b = c.recent.find((t) => t.tag === "bill");
+      return onAct({ kind: "refund", momentId: id, amount: Math.abs(b?.amount ?? 0), payee: b?.label ?? "the biller" });
+    }
+    onAct({ kind: "ack", momentId: id, text: `${cta}: opened. This screen is a preview in the demo.` });
+  }
 
   return (
     <div className="phone relative flex shrink-0 flex-col overflow-hidden bg-surface">
@@ -90,12 +104,18 @@ export function MomentPhone({
                     <div className="mt-2 rounded-xl bg-good-soft p-2 text-[12px] text-good">An advisor will call you. They already have a short brief, so you won't have to repeat yourself.</div>
                   )}
                   {GOAL_MOMENTS.includes(m.id) && <GoalFill customer={c} />}
-                  {done === m.id ? (
-                    <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">{goalSet ? `Saving for ${goalSet.toLowerCase()}. First transfer on payday.` : "Done. You can undo this in Activity."}</div>
+                  {confirm && confirm.kind === "transfer_from_savings" ? (
+                    <div className="mt-3 rounded-lg bg-surface-2 p-3 text-[13px]">
+                      <div>Move <b>{eur(confirm.amount)}</b> from savings ({eur(c.savingsBalance)}) to your current account?</div>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => { onAct(confirm); setConfirm(null); }} className="h-9 flex-1 rounded-full bg-accent text-sm font-semibold text-white">Confirm transfer</button>
+                        <button onClick={() => setConfirm(null)} className="h-9 rounded-full px-3 text-sm text-ink-2">Cancel</button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="mt-3 flex gap-2">
-                      <button onClick={() => { if (GOAL_MOMENTS.includes(m.id)) setGoalOpen(true); else { setDone(m.id); onFeedback(m.id, true); } }} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
-                      <button onClick={() => onFeedback(m.id, false)} className="h-10 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-2">Not now</button>
+                      <button onClick={() => primary(m.id, act.cta)} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
+                      <button onClick={() => onAct({ kind: "dismiss", momentId: m.id })} className="h-10 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-2">Not now</button>
                     </div>
                   )}
                   <button onClick={() => setWhy(true)} className="mt-2 w-full text-center text-[12px] font-semibold text-accent">Why am I seeing this?</button>
@@ -109,6 +129,25 @@ export function MomentPhone({
                   )}
                 </div>
               ) : null}
+
+              {c.goal && (
+                <div className="flex items-center gap-3 rounded-xl bg-surface p-3 shadow-[0_8px_24px_-14px_rgba(10,42,74,0.35)]">
+                  <GoalShape shape={c.goal.shape} pct={c.goal.saved / c.goal.target} size={64} />
+                  <div className="text-[13px]">
+                    <div className="font-semibold">{c.goal.label}</div>
+                    <div className="text-ink-2">{eur(c.goal.saved)} of {eur(c.goal.target)}, +{eur(c.goal.monthly)} every payday</div>
+                  </div>
+                </div>
+              )}
+
+              {c.log && c.log.length > 0 && (
+                <div className="rounded-xl bg-surface p-4">
+                  <div className="mb-1 text-[14px] font-semibold">Activity</div>
+                  <ul className="space-y-1.5 text-[13px] text-ink-2">
+                    {c.log.map((t, i) => <li key={i} className={i === 0 ? "anim-pop text-ink" : ""}>{t}</li>)}
+                  </ul>
+                </div>
+              )}
 
               {/* recent evidence trail */}
               {c.recent.length > 0 && (
@@ -130,14 +169,14 @@ export function MomentPhone({
 
         {/* live scam guard: a transfer is in progress */}
         {scamLive && c.session?.attempt && guard && (
-          <ScamGuard customer={c} score={guard.score} factors={guard.factors} onWhy={() => setWhy(true)} />
+          <ScamGuard customer={c} score={guard.score} factors={guard.factors} onWhy={() => setWhy(true)} onOutcome={(outcome) => onAct({ kind: "scam", outcome })} />
         )}
 
         {goalOpen && (
           <SavingsGoalSheet
             customer={c}
             onClose={() => setGoalOpen(false)}
-            onDone={(label) => { setGoalOpen(false); setGoalSet(label); if (m) { setDone(m.id); onFeedback(m.id, true); } }}
+            onDone={(g) => { setGoalOpen(false); if (m) onAct({ kind: "goal", momentId: m.id, ...g }); }}
           />
         )}
 
@@ -156,53 +195,61 @@ export function MomentPhone({
   );
 }
 
-function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer; score: number; factors: { text: string; group: SignalGroup }[]; onWhy: () => void }) {
-  const [state, setState] = useState<"paused" | "calling" | "cancelled">("paused");
+function ScamGuard({ customer: c, score, factors, onWhy, onOutcome }: { customer: Customer; score: number; factors: { text: string; group: SignalGroup }[]; onWhy: () => void; onOutcome: (o: "cancelled" | "delayed" | "handoff") => void }) {
+  const [state, setState] = useState<"paused" | "handoff">("paused");
   const a = c.session!.attempt!;
   const blocked = a.payee.flag === "blacklisted";
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-surface anim-fade">
       <div className="bg-crit px-5 pb-5 pt-4 text-white">
-        <div className="text-[13px] font-semibold opacity-90">Payment paused, risk {Math.round(score * 100)}%</div>
+        <div className="text-[13px] font-semibold opacity-90">Payment on hold. Risk signals: {factors.length}</div>
         <div className="mt-1 text-xl font-bold leading-snug">
           {blocked ? "We stopped this payment" : "Stop. Is someone on the phone with you right now?"}
         </div>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        <div className="rounded-2xl border border-line p-3 text-[13px]">
+        <div className="rounded-xl border border-line p-3 text-[13px]">
           <div className="text-ink-3">You were about to send</div>
           <div className="tabular text-2xl font-bold">{eur(a.amount)}</div>
           <div className="text-ink-2">to “{a.payee.name}”</div>
           <div className="tabular text-[12px] text-ink-3">{a.payee.iban}</div>
           <div className="text-[12px] text-ink-3">message: “{a.note}”</div>
         </div>
-        {state === "paused" && (
+        {state === "paused" ? (
           <>
             <p className="text-[14px] leading-relaxed">
               {blocked
                 ? "This account is known to be used by scammers. No money left your account."
                 : "KBC will never call you to move money to a “safe account” or ask you to install AnyDesk or TeamViewer. Scammers sound exactly like bank staff. Your money is still here."}
             </p>
-            <div className="rounded-2xl bg-crit-soft p-3 text-[13px]">
+            <div className="rounded-xl bg-crit-soft p-3 text-[13px]">
               <div className="mb-1 font-semibold text-crit">What we noticed</div>
               <ul className="space-y-0.5 text-ink-2">
                 {factors.slice(0, 6).map((f, i) => <li key={i} className="flex items-baseline"><Dot g={f.group} />{f.text}</li>)}
               </ul>
             </div>
-            <button onClick={() => setState("calling")} className="h-12 w-full rounded-full bg-accent text-[15px] font-semibold text-white">Hang up and talk to a real KBC employee</button>
-            <button onClick={() => setState("cancelled")} className="h-11 w-full rounded-full border border-line text-sm font-semibold">Cancel this payment</button>
-            {!blocked && <button onClick={() => setState("cancelled")} className="w-full text-center text-[12px] text-ink-3">It's really me: send it after a 24h cooling-off period</button>}
-            <button onClick={onWhy} className="w-full text-center text-[12px] font-semibold text-accent">Why did KBC pause this?</button>
+            <button onClick={() => setState("handoff")} className="h-12 w-full rounded-full bg-accent text-[15px] font-semibold text-white">Hang up and talk to a real KBC employee</button>
+            <button onClick={() => onOutcome("cancelled")} className="h-11 w-full rounded-full border border-line text-sm font-semibold">Cancel this payment</button>
+            {!blocked && <button onClick={() => onOutcome("delayed")} className="w-full text-center text-[12px] text-ink-3">It&apos;s really me: send it after a 24-hour hold</button>}
+            <button onClick={onWhy} className="w-full text-center text-[12px] font-semibold text-accent">Why did KBC stop this?</button>
           </>
-        )}
-        {state === "calling" && (
-          <div className="rounded-2xl bg-good-soft p-4 text-[14px] text-good">
-            <div className="font-semibold">Connecting you to the KBC fraud team…</div>
-            <div className="mt-1 text-[13px]">Verified in-app call, not a phone number anyone can fake. The employee already sees this paused payment and why it was flagged.</div>
-          </div>
-        )}
-        {state === "cancelled" && (
-          <div className="rounded-2xl bg-good-soft p-4 text-[14px] font-semibold text-good">Payment cancelled. {eur(a.amount)} is safe in your account.</div>
+        ) : (
+          <>
+            <div className="rounded-xl bg-good-soft p-3 text-[13px] text-good">
+              <div className="font-semibold">In-app call to the KBC fraud team</div>
+              <div className="mt-0.5">Simulated in this demo. In production this is a verified call from inside the app, so nobody can fake the number.</div>
+            </div>
+            <div className="rounded-xl border border-line p-3 text-[13px]">
+              <div className="font-semibold">What the employee sees before saying hello</div>
+              <ul className="mt-1 space-y-0.5 text-ink-2">
+                <li>{c.name}, {c.age}, customer on hold since {String(c.session!.hour).padStart(2, "0")}:12</li>
+                <li>{eur(a.amount)} to a first-time payee, {a.payee.iban.slice(0, 2)} account{a.payee.flag ? `, reported as ${a.payee.flag}` : ""}</li>
+                {factors.filter((f) => f.group !== "money").slice(0, 3).map((f, i) => <li key={i}>{f.text}</li>)}
+                <li>Suggested opening: “You did the right thing. Nobody from KBC asked you to move money.”</li>
+              </ul>
+            </div>
+            <button onClick={() => onOutcome("handoff")} className="h-11 w-full rounded-full bg-accent text-sm font-semibold text-white">End call, back to my app</button>
+          </>
         )}
       </div>
     </div>
@@ -293,7 +340,7 @@ function Privacy({ customer: c, decision: d, onConsent }: { customer: Customer; 
 
       <div className="mt-4 space-y-2">
         <Toggle label="Personalized offers" sub="Insurance, savings and investment suggestions based on my life moments" on={c.consent.personalizedOffers} onClick={() => toggle("personalizedOffers")} />
-        <Toggle label="Push notifications" sub="Otherwise we only show things inside the app" on={c.consent.push} onClick={() => toggle("push")} />
+        <Toggle label="Push notifications" sub="Off: we show it in the app, or email you if you rarely open it" on={c.consent.push} onClick={() => toggle("push")} />
         <Toggle label="Advisor may contact me" sub="For big moments like moving or a new family member" on={c.consent.advisor} onClick={() => toggle("advisor")} />
         <div className="rounded-2xl bg-crit-soft p-3 text-[12px] text-crit">
           Scam and fraud protection always stays on. It protects your money, it never sells you anything.

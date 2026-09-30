@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import { ControlRoom } from "@/components/ControlRoom";
 import { MomentPhone } from "@/components/MomentPhone";
+import { MOMENT_BY_ID } from "@/lib/moments";
 import { decide, POLICY } from "@/lib/orchestrator";
 import { accumulate, applyPatch, type Consent, type Patch, type PassStats } from "@/lib/pass";
 import { getCustomer, HEROES } from "@/lib/heroes";
+import { reduce, type DemoAction } from "@/lib/demoActions";
 
 const HERO = HEROES[0].id;
 
@@ -14,6 +16,8 @@ export default function Page() {
   const [overrides, setOverrides] = useState<Map<number, Patch>>(() => new Map());
   const [budget, setBudget] = useState(POLICY.weeklyBudget);
   const [selectedId, setSelectedId] = useState<number>(HERO);
+  const [view, setView] = useState<"customer" | "kbc">("customer");
+  const openCustomer = (id: number) => { setSelectedId(id); setView("customer"); };
 
   const customer = useMemo(() => applyPatch(getCustomer(selectedId), overrides.get(selectedId)), [selectedId, overrides]);
   const decision = useMemo(() => decide(customer, { budget }), [customer, budget]);
@@ -33,24 +37,84 @@ export default function Page() {
     }
   }
   const onConsent = (consent: Consent) => patch({ consent });
-  // Feedback loop: dismissing a kind of moment lowers its relevance for this customer.
-  const onFeedback = (momentId: string, acted: boolean) => {
-    const cur = customer.relevance[momentId] ?? 1;
-    patch({ relevance: { [momentId]: Math.max(0.1, Math.min(1.5, cur * (acted ? 1.15 : 0.5))) } });
-  };
+  // Customer taps: a real (synthetic, in-memory) state change, kept when switching customers.
+  const onAct = (a: DemoAction) => patch(reduce(customer, overrides.get(selectedId), a));
+
+  const first = customer.name.split(" ")[0];
+  const live = decision.chosen && MOMENT_BY_ID[decision.chosen.momentId].realtime;
 
   return (
-    <main className="flex min-h-[100dvh] flex-col-reverse lg:flex-row">
-      <a href="#main" className="skip-link">Skip to the control room</a>
-      <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={setSelectedId} />
-      <aside className="flex flex-col items-center gap-3 bg-page px-4 py-8 lg:sticky lg:top-0 lg:h-screen lg:w-[480px] lg:shrink-0 lg:overflow-y-auto">
-        <div className="w-full max-w-[390px]">
-          <h2 className="text-[20px] font-bold text-ink">Next morning, in {customer.name.split(" ")[0]}&apos;s app</h2>
-          <p className="text-[14px] text-ink-2">{customer.age}, {customer.segment.replace("_", " ")}, {customer.city}. Synthetic customer.</p>
+    <div className="min-h-[100dvh]">
+      <a href="#main" className="skip-link">Skip to content</a>
+      <nav className={`sticky top-0 z-40 flex items-center justify-between gap-4 px-5 py-3 lg:px-10 ${view === "kbc" ? "bg-night text-white" : "bg-page text-ink"}`}>
+        <span className="text-[15px] font-bold">KBC personalization prototype</span>
+        <div role="tablist" aria-label="Side" className={`flex rounded-lg p-1 ${view === "kbc" ? "bg-white/10" : "bg-white"}`}>
+          {([["customer", "Customer"], ["kbc", "KBC"]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded-md px-4 py-1.5 text-[14px] font-semibold ${view === v ? (v === "kbc" ? "bg-signal text-night" : "bg-brand text-white") : "opacity-70 hover:opacity-100"}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <MomentPhone key={selectedId} customer={customer} decision={decision} onConsent={onConsent} onFeedback={onFeedback} />
-        <p className="max-w-[390px] text-center text-[12px] text-ink-3">Hackathon prototype, not an official KBC app.</p>
-      </aside>
-    </main>
+      </nav>
+
+      {view === "kbc" ? (
+        <main id="main" className="flex">
+          <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={openCustomer} />
+        </main>
+      ) : (
+        <main id="main" className="mx-auto grid max-w-[1200px] items-start gap-8 px-5 pb-10 pt-4 lg:grid-cols-[1fr_390px_1fr] lg:px-10">
+          <section aria-label="Customers" className="order-2 lg:order-1">
+            <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">Five people, five different mornings</h1>
+            <p className="mt-2 max-w-sm text-[15px] text-ink-2">Same engine, same rules. Pick someone and their app adapts to what is going on in their life.</p>
+            <ul className="mt-5 space-y-1">
+              {HEROES.map((h) => {
+                const on = selectedId === h.id;
+                return (
+                  <li key={h.id}>
+                    <button
+                      onClick={() => setSelectedId(h.id)}
+                      className={`w-full rounded-lg px-3 py-2.5 text-left ${on ? "bg-brand text-white" : "hover:bg-white"}`}
+                    >
+                      <span className="block text-[15px] font-bold">{h.customer.name}, {h.customer.age}</span>
+                      <span className={`block text-[13px] leading-snug ${on ? "text-white/75" : "text-ink-2"}`}>{h.story}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {selectedId >= 0 && <p className="mt-3 text-[13px] text-ink-3">Showing customer #{selectedId} from the nightly pass.</p>}
+          </section>
+
+          <div className="order-1 flex flex-col items-center gap-3 lg:order-2">
+            <MomentPhone key={selectedId} customer={customer} decision={decision} onConsent={onConsent} onAct={onAct} />
+            <p className="text-center text-[12px] text-ink-3">Hackathon prototype, not an official KBC app. Synthetic data.</p>
+          </div>
+
+          <section aria-label="What is happening" className="order-3 lg:pt-16">
+            <h2 className="text-[20px] font-bold">{live ? `Right now, ${first} is paying someone` : `Next morning, in ${first}'s app`}</h2>
+            <p className="mt-2 text-[15px] text-ink-2">
+              {live
+                ? "The live guard compares this payment with what is normal for this person, while it happens, and steps in before the money leaves."
+                : decision.chosen
+                  ? "Last night the engine looked at every signal, found what matters most for this person, and chose one message. Everything else waited."
+                  : "Last night the engine found nothing worth an interruption. Silence is a feature."}
+            </p>
+            <dl className="mt-5 space-y-3 text-[14px]">
+              <div><dt className="text-ink-3">Moments found</dt><dd className="font-semibold">{decision.detections.length}</dd></div>
+              <div><dt className="text-ink-3">Shown</dt><dd className="font-semibold">{decision.chosen ? MOMENT_BY_ID[decision.chosen.momentId].label : "Nothing"}</dd></div>
+              <div><dt className="text-ink-3">Held back</dt><dd className="font-semibold">{decision.held.length}</dd></div>
+              <div><dt className="text-ink-3">Attention budget</dt><dd className="font-semibold">{Math.min(decision.budget.used, decision.budget.size)} of {decision.budget.size} used this week</dd></div>
+            </dl>
+            <button onClick={() => setView("kbc")} className="mt-6 text-[14px] font-semibold text-accent underline underline-offset-4">See how this runs for 2.3 million customers</button>
+          </section>
+        </main>
+      )}
+    </div>
   );
 }

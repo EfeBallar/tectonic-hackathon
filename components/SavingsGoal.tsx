@@ -70,12 +70,12 @@ const SHAPES: Record<Shape, string> = {
   suitcase: "M36 22 L64 22 L64 32 L86 32 L86 88 L14 88 L14 32 L36 32 Z",
 };
 
-export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: Customer; onClose: () => void; onDone: (label: string) => void }) {
+export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: Customer; onClose: () => void; onDone: (g: { label: string; target: number; monthly: number; fromIdle: number; shape: Shape }) => void }) {
   const options = goalsFor(c);
   const [goal, setGoal] = useState(options[0]);
   const surplus = Math.max(0, idleSurplus(c));
   const [moveIdle, setMoveIdle] = useState(surplus > 0);
-  const [monthly, setMonthly] = useState(Math.max(25, Math.round((c.salaryNow * 0.08) / 25) * 25));
+  const [monthly, setMonthly] = useState(Math.max(25, Math.round((c.salaryNow * 0.1) / 25) * 25));
   const [coin, setCoin] = useState(0);
   const [preview, setPreview] = useState(0); // months fast-forwarded in the preview
   const start = Math.min(goal.target, (moveIdle ? Math.min(surplus, goal.target) : 0) + preview * monthly);
@@ -145,10 +145,10 @@ export function SavingsGoalSheet({ customer: c, onClose, onDone }: { customer: C
           </label>
         )}
 
-        <button onClick={() => onDone(goal.label)} className="mt-5 h-12 w-full rounded-full bg-calm text-[15px] font-semibold text-white">
+        <button onClick={() => onDone({ label: goal.label, target: goal.target, monthly, fromIdle: moveIdle ? Math.min(surplus, goal.target) : 0, shape: goal.shape })} className="mt-5 h-12 w-full rounded-full bg-calm text-[15px] font-semibold text-white">
           Start saving for {goal.label.toLowerCase()}
         </button>
-        <p className="mt-2 text-center text-[12px] text-ink-3">You can pause or stop it any time. Nothing moves until you confirm.</p>
+        <p className="mt-2 text-center text-[12px] text-ink-3">This button is your confirmation. You can pause or stop the plan any time.</p>
       </div>
     </div>
   );

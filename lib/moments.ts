@@ -104,11 +104,13 @@ export const MOMENTS: MomentDef[] = [
     commercial: false,
     realtime: true,
     bigMoment: false,
-    action: (c) => ({
-      title: "Stop. Is someone on the phone with you?",
-      message: `KBC will never call you and ask you to move money or install an app. We paused this ${eur(c.session?.attempt?.amount ?? 0)} payment. Hang up and call us on a number you trust.`,
-      cta: "Call the real KBC",
-    }),
+    action: (c) => {
+      const g = assessPayment(c);
+      const amt = eur(c.session?.attempt?.amount ?? 0);
+      return g && g.tier === "check"
+        ? { title: "First payment to this account", message: `Before the ${amt} leaves, check that the name matches who you mean to pay. Nothing unusual otherwise.`, cta: "Name matches, continue" }
+        : { title: "Stop. Is someone on the phone with you?", message: `KBC will never call you and ask you to move money or install an app. We paused this ${amt} payment. Hang up and call us on a number you trust.`, cta: "Call the real KBC" };
+    },
     detect: (c) => {
       const g = assessPayment(c);
       if (!g || g.tier === "allow") return null;
@@ -197,11 +199,11 @@ export const MOMENTS: MomentDef[] = [
     realtime: false,
     bigMoment: false,
     action: (c) => {
-      const b = c.changedDomiciliations[0];
+      const b = increasedBill(c)!;
       return { title: `${b.label} went up to ${eur(b.now)}`, message: `Usually ${eur(b.usual)}. That's ${eur((b.now - b.usual) * 12)} more a year if it stays. Want to check the contract or compare?`, cta: "Look into it" };
     },
     detect: (c) => {
-      const b = c.changedDomiciliations.find((x) => x.now > x.usual * 1.2);
+      const b = increasedBill(c);
       if (!b) return null;
       return {
         momentId: "bill_increase",
@@ -222,6 +224,7 @@ export const MOMENTS: MomentDef[] = [
       title: "Your first salary. Congrats!",
       message: `Most people's spending jumps in the first months of a job. Decide now: keep ${eur(Math.round(c.salaryNow * 0.1 / 10) * 10)}/month for yourself, automatically, the day your salary lands.`,
       cta: "Set up my 10% plan",
+      // SavingsGoal uses the same 10% default
     }),
     detect: (c) => {
       const t = c.recent.find((x) => x.tag === "first_salary");
@@ -402,6 +405,10 @@ function findDuplicate(c: Customer) {
   return null;
 }
 
+function increasedBill(c: Customer) {
+  return c.changedDomiciliations.find((x) => x.now > x.usual * 1.2) ?? null;
+}
+
 export function monthlyExpenses(c: Customer): number {
   return Math.round((c.dailySpend * 30 + c.upcomingOutflows) / 10) * 10;
 }
@@ -410,9 +417,9 @@ export function idleSurplus(c: Customer): number {
 }
 /** Day (from today) the balance first goes below zero before payday, or null. */
 export function negativeInDays(c: Customer): number | null {
-  for (let d = 0; d < c.daysToPayday; d++) {
-    const bal = c.checking - c.dailySpend * (d + 1) - (d >= c.billsDueInDays ? c.upcomingOutflows : 0);
-    if (bal < 0) return d + 1;
+  for (let d = 1; d <= c.daysToPayday; d++) {
+    const bal = c.checking - c.dailySpend * d - (d >= Math.max(1, c.billsDueInDays) ? c.upcomingOutflows : 0);
+    if (bal < 0) return d;
   }
   return null;
 }
@@ -426,9 +433,10 @@ function ordinal(n: number): string {
   return `${n}${s}`;
 }
 
+/** Shortfall at the lowest point before payday, rounded UP so a suggested transfer always covers it. */
 export function projectedGap(c: Customer): number {
   const gap = c.upcomingOutflows + c.dailySpend * c.daysToPayday - c.checking;
-  return gap > 0 ? Math.round(gap / 10) * 10 : 0;
+  return gap > 0 ? Math.ceil(gap / 10) * 10 : 0;
 }
 
 export function detectAll(c: Customer): Detection[] {

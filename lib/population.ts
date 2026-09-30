@@ -91,6 +91,10 @@ export interface Customer {
   changedDomiciliations: { label: string; usual: number; now: number; daysAgo: number }[];
   life: { addressChangedDaysAgo?: number; dependentAddedDaysAgo?: number; newLoanDaysAgo?: number };
   session?: Session;
+  /** Demo-session state: moments handled this week, an active savings goal, the activity log. */
+  resolved?: string[];
+  goal?: { label: string; target: number; monthly: number; saved: number; shape: "car" | "house" | "cap" | "suitcase" };
+  log?: string[];
   /** Ground truth for the demo only (what we injected). Detectors never read this. */
   truth: string[];
 }
