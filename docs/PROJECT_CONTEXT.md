@@ -53,28 +53,105 @@ verify materials before final submission, even if time remains on the clock.
 - User: coordinating development with Codex and Claude Code.
 - PM friend: preparing answers to the planning questions. Exact questions and
   answers have not yet been shared with the agents.
-- Claude's initial assignment: a brief MVP proposal, adjusted to the PM's input.
-- Codex: has prepared shared instructions and the Claude handoff; no application
-  implementation has been assigned yet.
-- Challenge track: KBC is a working assumption based on the folder location.
-- Product concept and technology stack: not chosen in the context received so far.
+- CORRECTION (user, 19:15): the product is NOT decided. The PM is working on
+  it. `docs/SPEC.md` (Moments) is one candidate from an earlier chat;
+  `docs/MVP_PROPOSAL.md` is Claude's proposal. `docs/TASKS.md` is a proposed
+  split; only its security tasks (X1-X3) are concept-independent.
+- Claude owns the population generator, moment detectors, policy, and UI.
+- Codex owns security, documentation, and review as detailed in the task board.
+- Challenge: KBC. Existing stack: Next.js, React, TypeScript, Tailwind.
+- Codex's intake work inspected source and updated context; it has not yet run
+  the application or completed the implementation tasks assigned in the board.
 - Owners for video, description, audit, and final submission: not assigned yet.
+
+## Incoming starter and implementation status
+
+Source: user-pasted Claude Web conversation and inspected workspace files.
+
+The supplied `kbc-moments/` app has been moved to the repository root by the
+active Claude Code session. Run application commands at the root. The original
+long app handoff is now `docs/SPEC.md`; root `CLAUDE.md` links the current plan.
+Do not unzip another copy over this workspace or initialize another repository.
+
+- Present at intake: phone UI, seeded customers Lotte/Bram/Noah, deterministic
+  finance engine, action confirmation, chat/template fallback, optional provider
+  adapters, package scripts, and a preview builder.
+- Missing at intake: population generator, Moments detector library, orchestrator,
+  control room, and consent screen. Claude is building these; read the task board
+  and current code rather than treating this snapshot as live status.
+- The generated preview HTML was not present at intake. Its build script exists.
+- Build, runtime behavior, provider calls, throughput, and security have not been
+  verified by Codex in this intake turn. The smoke script prints engine output;
+  it is not an assertion-based correctness test.
+- No-key behavior means template wording, not a live AI service without a key.
+- Submission copy must reflect implemented, checked features and real measurements.
+  Linear extrapolation to 2.3M customers is an estimate, not a production-scale
+  benchmark. Record workload, environment, and timing boundary.
+- Simulated detections/routing do not demonstrate prevented fraud, closed
+  insurance gaps, or notifications delivered to real customers.
+- The imported named jury roles have not been verified against the guide or
+  dashboard; do not present them as confirmed event facts.
+
+### Prep-code provenance
+
+The user reports that the starter was written before the event. The participant
+guide requires building during the official slot; permission to reuse prep code
+has not been established in the information provided. Preserve/disclose this
+provenance. Fresh commits or README disclosure alone do not establish eligibility.
+A teammate should check the organizers' policy before relying on the starter as
+eligible submission work. This note is not a conclusion that reuse is prohibited.
 
 ## PM input
 
-**Awaiting the PM's actual answers.** The user can paste their message into either
-agent session and ask that agent to record it here. No special format is needed.
+### PM notes, round 1 (received 19:20, verbatim)
 
-When answers arrive, preserve the PM's meaning and record whatever is supplied:
-the chosen challenge, target customer, problem, proposed experience, demo story,
-must-have scope, and exclusions. These are optional organizing fields, not a new
-questionnaire the PM must complete. Mark any remaining unknowns explicitly.
+```
+1. Signals: what do we observe?
+Money:
+  Transactions, Payees, New payees, Blacklisted payees, Suspect Payees,
+  Amounts (large), Recurring charges, New domiciliations, Changes in amount,
+  Change of usual currency
+Behavior:
+  app usage, Change in app usage trend, time of day, Hesitation, repeated attempts
+Context:
+  Device, active phone call, remote-access app, Location, Card coming to expiration
+Life:
+  salary change, new address, new dependents, New loan
+
+2. Recognition: who is the customer right now?
+Static persona: Life, Money (1/2)
+Live State: Money (1/2), Behavior, Context
+
+3. Moments: when does it matter?
+
+PROTECTING FROM SCAMS!!
+User needs to feel as much confidence in the service as they do when they're
+on a call with an employee.
+```
+
+### Interpretation (Claude, to confirm with PM)
+
+- Structure matches the case: signals -> recognition -> moments.
+- Recognition = a slow "static persona" (life + money history) combined with a
+  fast "live state" (money + behavior + context right now).
+- Emphasis: **scam protection** is the hero moment. Many listed signals are
+  scam signals (new/suspect/blacklisted payee, large amount, active phone call,
+  remote-access app, hesitation, repeated attempts, unusual time/device/location).
+- Goal statement: the app should give the confidence of talking to a KBC employee.
+
+### Still open
+
+- Section 3 (which moments besides scams) is not filled in yet.
+- Whether scams are the whole product or the hero moment inside a broader
+  moments engine.
+- Response style for a suspected scam (pause + explain, call-back, human handoff).
 
 ## Suggested working order
 
-This is a suggested workflow, not an organizer requirement or a decided stack.
+This is a suggested workflow, not an organizer requirement. The active task board
+and Moments spec now refine the generic sequence below.
 
-1. Incorporate the PM's answers and choose one customer journey.
+1. Incorporate the PM's answers into one Moments customer journey.
 2. Agree on the minimum demo, interfaces, and separate file ownership.
 3. Build and verify that journey end to end using synthetic data.
 4. Run the Aikido baseline as soon as there is code to audit; capture it, fix
@@ -90,8 +167,8 @@ are pending. Do not silently choose a product direction on the team's behalf.
 
 The user wants a prototype that can evolve as PM answers arrive and remain easy
 to improve after the hackathon. Prioritize a working, changeable demo over a
-large initial specification. This is a proposed delivery plan, not a claim that
-the product or implementation has been approved or completed.
+large initial specification. The Moments direction is now recorded in the active
+instructions; the iterations below guide delivery, not claims of completed work.
 
 Planning reference: September 30 at 19:04 Brussels time, with about 3h 56m to the
 deadline. Recalculate time when reading this; shorten scope rather than moving
@@ -106,8 +183,9 @@ Fill these from actual team input; leave unknowns explicit:
 - Problem and useful outcome: pending PM input.
 - One visible demo moment that proves the idea: pending PM input.
 
-Once those are clear, select the smallest implementation and start. Keep later
-PM feedback in a short backlog; do not repeatedly restart product discovery.
+Use those answers to refine the Moments journey. Baseline verification and the
+assigned engine work can proceed while answers arrive. Keep later PM feedback
+in a short backlog; do not repeatedly restart product discovery.
 
 ### Build in small versions
 
@@ -148,17 +226,16 @@ collection of process documents. Never claim a result was tested when it was not
 - Save future integrations and additional customer journeys for after the first
   working demo; revisit them after the event if time does not permit.
 
-### Proposed responsibilities
+### Responsibilities
 
 - PM: supply the customer story and assess whether each demo addresses it.
-- Claude: recommended first implementation owner once the concept is chosen.
-- Codex: recommended reviewer/tester, then owner of a separately assigned task.
+- Claude: lead/integrator, engine and UI owner under `docs/TASKS.md`.
+- Codex: security, documentation, and review under `docs/TASKS.md`.
 - User: choose direction with the PM and relay updates between agent sessions.
 
-These are proposed responsibilities, not evidence that another session has
-accepted a task. Confirm file ownership through the user's task messages before
-concurrent edits. The reviewer reports issues without racing to edit the
-builder's files. The user does not need to design an agent orchestration system.
+The task board now records file ownership. Follow it before concurrent edits.
+The reviewer reports issues without racing to edit the builder's files. The
+user does not need to design an agent orchestration system.
 
 ### Submission time budget
 
@@ -172,8 +249,9 @@ builder's files. The user does not need to design an agent orchestration system.
 
 ### Current iteration
 
-- Stage: awaiting the first PM product answers; shared context is ready.
-- Working application: none yet.
-- Next outcome: select one customer journey and turn it into the Version 0 task.
-- Current development blocker: customer story not yet supplied; no runtime or
-  dependency blockers have been tested.
+- Stage: existing starter and Moments roadmap received; PM answers still pending.
+- Application: starter source at repository root; runtime not verified by Codex.
+- Next outcome: baseline verification and the task board's first implementation
+  steps, refining the demo story when the PM's answers arrive.
+- Open issues: prep-code eligibility and untested baseline. No dependency or
+  runtime failure has yet been established by Codex.

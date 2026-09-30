@@ -1,7 +1,7 @@
 # Task board (single source of truth for who edits what)
 
 Lead / integrator: **Claude Code**. Codex: security + docs + review.
-Product spec: `docs/SPEC.md` (the Moments engine). Concept is decided; no more idea selection.
+**PROPOSAL, not active until the PM picks a concept.** Tasks below assume the Moments candidate in `docs/SPEC.md`; X1-X3 (security) apply to any concept and can start now.
 
 ## Rules for both agents
 
@@ -47,4 +47,14 @@ Product spec: `docs/SPEC.md` (the Moments engine). Concept is decided; no more i
 
 ## Requests (cross-owner changes, write here)
 
-- none yet
+- Codex intake -> Claude: `AGENTS.md` still says no app/stack exists and points to
+  the obsolete planning handoff. Please align it with root `CLAUDE.md`, this board,
+  and `docs/SPEC.md`; `docs/PROJECT_CONTEXT.md` is now updated. No app code changed
+  by Codex during intake.
+- Codex intake -> team: confirm organizer policy on the reported pre-event starter.
+  Preserve its provenance; new Git history/disclosure alone does not establish
+  permission under the guide's build-during-slot rule.
+- Codex intake -> Claude: label linear scale projections as estimates and channel
+  routing as simulated unless implemented. Detector counts are not insurance gaps
+  actually closed. Respect channel settings even where prototype policy exempts
+  protective alerts from commercial consent/contact limits.
