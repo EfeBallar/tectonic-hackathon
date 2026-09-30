@@ -77,7 +77,9 @@ export interface Customer {
   checking: number;
   savingsBalance: number;
   daysToPayday: number;
-  upcomingOutflows: number; // known bills before payday
+  upcomingOutflows: number; // known bills (domiciliations) before payday
+  billsDueInDays: number; // when those bills hit
+  savingsIdleDays: number; // days since the savings balance last moved
   dailySpend: number;
   salaryPrev: number;
   salaryNow: number;
@@ -187,6 +189,8 @@ export function generateCustomer(id: number): Customer {
     savingsBalance: 0,
     daysToPayday: int(rng, 1, 30),
     upcomingOutflows: r10(income * (0.2 + rng() * 0.3)),
+    billsDueInDays: 0,
+    savingsIdleDays: int(rng, 0, 400),
     dailySpend: Math.round((income / 30) * (0.3 + rng() * 0.3)),
     salaryPrev: income,
     salaryNow: income,
@@ -204,6 +208,7 @@ export function generateCustomer(id: number): Customer {
   c.appSessionsLast7 = Math.max(0, c.baseline.appSessionsPerWeek + int(rng, -2, 2));
   c.savingsBalance = c.products.savings ? r10(income * (0.5 + rng() * rng() * 12)) : 0;
 
+  c.billsDueInDays = int(rng, 0, Math.max(0, c.daysToPayday - 1));
   // healthy default: checking covers the bills until payday with some margin
   const need = c.upcomingOutflows + c.dailySpend * c.daysToPayday;
   c.checking = r10(need + income * (0.15 + rng() * 0.8));

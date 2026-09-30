@@ -5,10 +5,9 @@ import { ControlRoom } from "@/components/ControlRoom";
 import { MomentPhone } from "@/components/MomentPhone";
 import { decide, POLICY } from "@/lib/orchestrator";
 import { accumulate, applyPatch, type Consent, type Patch, type PassStats } from "@/lib/pass";
-import { findExample, generateCustomer } from "@/lib/population";
+import { getCustomer, HEROES } from "@/lib/heroes";
 
-// Hero customer for the opening shot: a scam call in progress.
-const HERO = findExample("scam_call")?.id ?? 0;
+const HERO = HEROES[0].id;
 
 export default function Page() {
   const [stats, setStats] = useState<PassStats | null>(null);
@@ -16,7 +15,7 @@ export default function Page() {
   const [budget, setBudget] = useState(POLICY.weeklyBudget);
   const [selectedId, setSelectedId] = useState<number>(HERO);
 
-  const customer = useMemo(() => applyPatch(generateCustomer(selectedId), overrides.get(selectedId)), [selectedId, overrides]);
+  const customer = useMemo(() => applyPatch(getCustomer(selectedId), overrides.get(selectedId)), [selectedId, overrides]);
   const decision = useMemo(() => decide(customer, { budget }), [customer, budget]);
 
   // Privacy toggle or feedback: re-decide this customer live and patch the control room totals.
@@ -25,10 +24,10 @@ export default function Page() {
     const next = new Map(overrides);
     next.set(selectedId, merged);
     setOverrides(next);
-    if (stats && selectedId < stats.scanned) {
+    if (stats && selectedId >= 0 && selectedId < stats.scanned) {
       const s: PassStats = structuredClone(stats);
       accumulate(s, customer, decision, -1);
-      const updated = applyPatch(generateCustomer(selectedId), merged);
+      const updated = applyPatch(getCustomer(selectedId), merged);
       accumulate(s, updated, decide(updated, { budget }), 1);
       setStats(s);
     }

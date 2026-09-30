@@ -139,7 +139,7 @@ export const MOMENTS: MomentDef[] = [
   },
   {
     id: "cash_crunch",
-    label: "Cash crunch before payday",
+    label: "Overdraft coming",
     pillar: "support",
     productLine: "banking",
     commercial: false,
@@ -147,23 +147,26 @@ export const MOMENTS: MomentDef[] = [
     bigMoment: false,
     action: (c) => {
       const gap = projectedGap(c);
+      const day = negativeInDays(c);
       return {
-        title: `You'll be ${eur(gap)} short before payday`,
+        title: `Heads up: you'll go negative ${day === null ? "before payday" : `on the ${ordinal(dateIn(day))}`}`,
         message: c.savingsBalance > gap
-          ? `Your bills in the next ${c.daysToPayday} days are bigger than your balance. Move ${eur(gap)} from savings now, move it back on payday.`
-          : `Your bills in the next ${c.daysToPayday} days are bigger than your balance. Let's plan which ones can wait, no fees.`,
+          ? `Your bills and usual spending add up to ${eur(gap)} more than your balance before your salary lands in ${c.daysToPayday} days. Move ${eur(gap)} from savings now and put it back on payday.`
+          : `Your bills and usual spending add up to ${eur(gap)} more than your balance before payday. Let's see which payments can wait, no fees.`,
         cta: c.savingsBalance > gap ? `Move ${eur(gap)} from savings` : "Make a plan with Kate",
       };
     },
     detect: (c) => {
       const gap = projectedGap(c);
       if (gap <= 0) return null;
+      const day = negativeInDays(c);
       return {
         momentId: "cash_crunch",
         confidence: clamp(0.65 + Math.min(0.3, gap / c.baseline.monthlyIncome)),
         evidence: [
-          { group: "money", text: `Balance ${eur(c.checking)} vs ${eur(c.upcomingOutflows)} in known bills` },
-          { group: "money", text: `Usual spending ${eur(c.dailySpend)}/day for ${c.daysToPayday} days until payday` },
+          { group: "money", text: `Balance ${eur(c.checking)}; ${eur(c.upcomingOutflows)} in direct debits due in ${c.billsDueInDays} days` },
+          { group: "money", text: `Usual spending ${eur(c.dailySpend)}/day (last months' trend), salary in ${c.daysToPayday} days` },
+          ...(day !== null ? [{ group: "money" as const, text: `Forecast: balance goes below zero in ${day} days, ${eur(gap)} short at the lowest point` }] : []),
         ],
       };
     },
@@ -369,15 +372,21 @@ export const MOMENTS: MomentDef[] = [
     commercial: true,
     realtime: false,
     bigMoment: false,
-    action: (c) => ({ title: "Your savings could work harder", message: `You keep ${eur(c.savingsBalance)} on a savings account. Keep 6 months as a buffer and see what a simple investment plan could do with the rest.`, cta: "See a plan" }),
+    action: (c) => {
+      const surplus = idleSurplus(c);
+      return { title: `${eur(surplus)} is sitting still`, message: `You keep a safe buffer of 3 months of expenses, well done. The other ${eur(surplus)} hasn't moved in ${c.savingsIdleDays} days. Give it a goal and watch it fill up.`, cta: "Set a savings goal" };
+    },
     detect: (c) => {
-      if (c.products.investments) return null;
-      const surplus = c.savingsBalance - c.baseline.monthlyIncome * 6;
-      if (surplus <= 0) return null;
+      if (c.products.investments || c.savingsIdleDays < 60) return null;
+      const surplus = idleSurplus(c);
+      if (surplus < 1000) return null;
       return {
         momentId: "idle_cash",
         confidence: clamp(0.6 + Math.min(0.25, surplus / (c.baseline.monthlyIncome * 20))),
-        evidence: [{ group: "money", text: `${eur(c.savingsBalance)} in savings, ${eur(surplus)} above a 6-month buffer, no investments` }],
+        evidence: [
+          { group: "money", text: `${eur(c.savingsBalance)} in savings, ${eur(surplus)} above 3 months of expenses (${eur(monthlyExpenses(c))}/month)` },
+          { group: "behavior", text: `Savings balance unchanged for ${c.savingsIdleDays} days, no investments` },
+        ],
       };
     },
   },
@@ -391,6 +400,30 @@ function findDuplicate(c: Customer) {
     for (let j = i + 1; j < bills.length; j++)
       if (bills[i].label === bills[j].label && bills[i].amount === bills[j].amount && Math.abs(bills[i].daysAgo - bills[j].daysAgo) <= 3) return bills[i];
   return null;
+}
+
+export function monthlyExpenses(c: Customer): number {
+  return Math.round((c.dailySpend * 30 + c.upcomingOutflows) / 10) * 10;
+}
+export function idleSurplus(c: Customer): number {
+  return Math.round((c.savingsBalance - 3 * monthlyExpenses(c)) / 10) * 10;
+}
+/** Day (from today) the balance first goes below zero before payday, or null. */
+export function negativeInDays(c: Customer): number | null {
+  for (let d = 0; d < c.daysToPayday; d++) {
+    const bal = c.checking - c.dailySpend * (d + 1) - (d >= c.billsDueInDays ? c.upcomingOutflows : 0);
+    if (bal < 0) return d + 1;
+  }
+  return null;
+}
+function dateIn(days: number): number {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.getDate();
+}
+function ordinal(n: number): string {
+  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+  return `${n}${s}`;
 }
 
 export function projectedGap(c: Customer): number {

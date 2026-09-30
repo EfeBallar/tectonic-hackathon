@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/smoke.ts",
     "preview:build": "node scripts/build-preview.mjs",
-    "nightly": "tsx scripts/nightly.ts"
+    "nightly": "tsx scripts/nightly.ts",
+    "heroes": "tsx scripts/heroes.ts"
   },
   "dependencies": {
     "next": "^15.5.26",

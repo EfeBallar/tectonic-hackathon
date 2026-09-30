@@ -5,6 +5,7 @@ import { MOMENTS, NOT_DETECTED, type MomentId, type Pillar } from "@/lib/moments
 import { POLICY, type HoldReason } from "@/lib/orchestrator";
 import { emptyStats, runChunk, type Patch, type PassStats, type SampleKey } from "@/lib/pass";
 import type { Channel } from "@/lib/population";
+import { HEROES } from "@/lib/heroes";
 
 const SIZES = [
   { n: 100_000, label: "100k" },
@@ -108,6 +109,22 @@ export function ControlRoom({
         </div>
       </div>
 
+      {/* hand-written demo customers */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        {HEROES.map((h) => (
+          <button
+            key={h.id}
+            onClick={() => onSelect(h.id)}
+            title={h.story}
+            className={`rounded-2xl border p-3 text-left transition ${selectedId === h.id ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-accent/50"}`}
+          >
+            <div className="text-xl">{h.emoji}</div>
+            <div className="text-[13px] font-semibold leading-tight">{h.customer.name.split(" ")[0]}</div>
+            <div className="text-[11px] leading-tight text-ink-3">{h.label}</div>
+          </button>
+        ))}
+      </div>
+
       {/* progress + throughput */}
       <div className="rounded-2xl border border-line bg-surface p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
@@ -173,7 +190,7 @@ export function ControlRoom({
             <Impact label="Scam payments paused" value={fmt(st.impact.scamsPaused)} sub={`${eurM(st.impact.scamEurPaused)} kept from scammers`} tone="crit" />
             <Impact label="Overdrafts caught early" value={fmt(st.impact.overdraftsCaught)} sub="before the account went negative" tone="warn" />
             <Impact label="Double payments caught" value={fmt(st.chosen.duplicate_bill ?? 0)} sub={`${eurM(st.impact.duplicateEur)} to refund`} tone="warn" />
-            <Impact label="Idle savings surfaced" value={eurM(st.impact.idleEur)} sub="above a 6-month buffer" tone="good" />
+            <Impact label="Idle savings surfaced" value={eurM(st.impact.idleEur)} sub="above 3 months of expenses" tone="good" />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">

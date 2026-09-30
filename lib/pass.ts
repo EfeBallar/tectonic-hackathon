@@ -1,7 +1,7 @@
 // Nightly pass aggregation. Customers are never stored: we regenerate them from their id,
 // so memory stays flat at 2.3M. Only counts, sums and a few sample ids are kept.
 
-import { assessPayment, MOMENT_BY_ID, projectedGap, type MomentId } from "./moments";
+import { assessPayment, idleSurplus, MOMENT_BY_ID, projectedGap, type MomentId } from "./moments";
 import { decide, type Decision, type HoldReason } from "./orchestrator";
 import { generateCustomer, type Channel, type Customer } from "./population";
 
@@ -82,7 +82,7 @@ export function accumulate(s: PassStats, c: Customer, d: Decision, sign: 1 | -1 
       break;
     }
     case "cash_crunch": im.overdraftsCaught += sign; break;
-    case "idle_cash": im.idleEur += sign * Math.max(0, c.savingsBalance - c.baseline.monthlyIncome * 6); break;
+    case "idle_cash": im.idleEur += sign * Math.max(0, idleSurplus(c)); break;
     case "duplicate_bill": {
       const b = c.recent.find((t) => t.tag === "bill");
       im.duplicateEur += sign * Math.abs(b?.amount ?? 0);
