@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/* ---- Reskin here: every color in the app comes from these tokens ---- */
+@theme {
+  --color-page: #e9eef5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f7fb;
+  --color-ink: #0e1b2b;
+  --color-ink-2: #4a5a6e;
+  --color-ink-3: #8393a7;
+  --color-line: #e2e8f0;
+  --color-brand: #0a3561;
+  --color-brand-2: #0f4c86;
+  --color-accent: #1a86dd;
+  --color-accent-soft: #e5f1fc;
+  --color-warn: #b86e00;
+  --color-warn-soft: #fff3de;
+  --color-crit: #cc3129;
+  --color-crit-soft: #fdeceb;
+  --color-good: #1b8455;
+  --color-good-soft: #e4f5ec;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  0% { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+.anim-sheet { animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.anim-fade { animation: fade-in 0.2s ease-out; }
+.anim-pop { animation: pop-in 0.25s ease-out; }
+.shimmer {
+  background: linear-gradient(90deg, var(--color-surface-2) 0%, var(--color-line) 50%, var(--color-surface-2) 100%);
+  background-size: 600px 100%;
+  animation: shimmer 1.2s linear infinite;
+  border-radius: 6px;
+}
+
+/* Phone frame: real bezel on desktop, full screen on phones */
+.phone {
+  width: 390px;
+  height: min(844px, calc(100dvh - 32px));
+  border-radius: 46px;
+  border: 10px solid #0b0f16;
+  box-shadow: 0 30px 80px -20px rgba(10, 30, 60, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+@media (max-width: 640px) {
+  .phone {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-sheet, .anim-fade, .anim-pop { animation: none; }
+}
