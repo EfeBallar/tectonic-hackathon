@@ -1,3 +1,7 @@
+
+
+
+<img width="1007" height="713" alt="Screenshot 2026-09-30 at 22 47 15" src="https://github.com/user-attachments/assets/ee03543f-8077-4bf6-9067-9b55c68e3389" />
 # Ahead
 
 A bank knows a lot about its customers. The hard part is saying one useful thing at the right moment, and staying quiet the rest of the time.
