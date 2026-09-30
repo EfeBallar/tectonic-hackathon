@@ -142,7 +142,7 @@ def agent_payload(tool_ids: list[str]) -> dict:
             "tts": {
                 # Dutch and French need a multilingual v2.5 model
                 "model_id": os.environ.get("ELEVENLABS_AGENT_TTS_MODEL", "eleven_flash_v2_5"),
-                "voice_id": os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM"),
+                "voice_id": os.environ.get("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL"),
             },
             "asr": {"keywords": ["Kate", "KBC"]},
             "language_presets": {
