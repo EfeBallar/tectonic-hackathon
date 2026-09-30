@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     elevenlabs_api_base: str = "https://api.elevenlabs.io"
     elevenlabs_agent_id: str = ""
-    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    elevenlabs_voice_id: str = "EXAVITQu4vr4xnSDxMaL"
     elevenlabs_tts_model: str = "eleven_multilingual_v2"
 
     # kate-engine: expected OIDC audience + identity of the Pub/Sub push subscription
