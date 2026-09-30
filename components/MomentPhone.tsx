@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { assessPayment, MOMENT_BY_ID, MOMENTS, type SignalGroup } from "@/lib/moments";
+import { assessPayment, idleSurplus, MOMENT_BY_ID, MOMENTS, type SignalGroup } from "@/lib/moments";
 import type { Decision } from "@/lib/orchestrator";
 import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
+import { GoalShape, goalsFor, SavingsGoalSheet } from "./SavingsGoal";
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString("nl-BE")}`;
 const GROUP: Record<SignalGroup, { dot: string; label: string }> = {
@@ -17,6 +18,7 @@ const Dot = ({ g }: { g: SignalGroup }) => <span className={`mr-1.5 inline-block
 const CHANNEL_TXT = { app: "In-app card", push: "Push notification", kate: "Kate chat", email: "Email", advisor: "Advisor call" } as const;
 
 type Tab = "home" | "privacy";
+const GOAL_MOMENTS: string[] = ["idle_cash", "first_job", "salary_rise"];
 
 export function MomentPhone({
   customer,
@@ -32,6 +34,8 @@ export function MomentPhone({
   const [tab, setTab] = useState<Tab>("home");
   const [why, setWhy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalSet, setGoalSet] = useState<string | null>(null);
   const c = customer;
   const chosen = decision.chosen;
   const m = chosen ? MOMENT_BY_ID[chosen.momentId] : null;
@@ -85,12 +89,12 @@ export function MomentPhone({
                   {chosen!.channel === "advisor" && (
                     <div className="mt-2 rounded-xl bg-good-soft p-2 text-[12px] text-good">An advisor will call you. They already have a short brief, so you won't have to repeat yourself.</div>
                   )}
-                  {m.id === "idle_cash" && <GoalFill customer={c} />}
+                  {GOAL_MOMENTS.includes(m.id) && <GoalFill customer={c} />}
                   {done === m.id ? (
-                    <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">Done. You can undo this in Activity.</div>
+                    <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">{goalSet ? `Saving for ${goalSet.toLowerCase()}. First transfer on payday.` : "Done. You can undo this in Activity."}</div>
                   ) : (
                     <div className="mt-3 flex gap-2">
-                      <button onClick={() => { setDone(m.id); onFeedback(m.id, true); }} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
+                      <button onClick={() => { if (GOAL_MOMENTS.includes(m.id)) setGoalOpen(true); else { setDone(m.id); onFeedback(m.id, true); } }} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
                       <button onClick={() => onFeedback(m.id, false)} className="h-10 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-2">Not now</button>
                     </div>
                   )}
@@ -127,6 +131,14 @@ export function MomentPhone({
         {/* live scam guard: a transfer is in progress */}
         {scamLive && c.session?.attempt && guard && (
           <ScamGuard customer={c} score={guard.score} factors={guard.factors} onWhy={() => setWhy(true)} />
+        )}
+
+        {goalOpen && (
+          <SavingsGoalSheet
+            customer={c}
+            onClose={() => setGoalOpen(false)}
+            onDone={(label) => { setGoalOpen(false); setGoalSet(label); if (m) { setDone(m.id); onFeedback(m.id, true); } }}
+          />
         )}
 
         {why && <WhySheet customer={c} decision={decision} onClose={() => setWhy(false)} />}
@@ -198,18 +210,14 @@ function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer;
 }
 
 function GoalFill({ customer: c }: { customer: Customer }) {
-  // PM idea: make the savings goal tangible, e.g. a house that fills up
-  const older = c.age >= 45;
-  const goal = older ? 30000 : 10000;
-  const pctDone = Math.min(1, c.savingsBalance / (goal * 3));
+  // PM idea: make the savings goal tangible: an object from their life that fills up
+  const g = goalsFor(c)[0];
+  const pct = Math.min(1, Math.max(0, idleSurplus(c)) / g.target);
   return (
-    <div className="mt-3 flex items-center gap-3 rounded-xl bg-surface-2 p-2">
-      <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-line text-center text-3xl leading-[48px]">
-        <div className="absolute inset-x-0 bottom-0 bg-good/40" style={{ height: `${pctDone * 100}%` }} />
-        <span className="relative">{older ? "🏡" : "🚗"}</span>
-      </div>
-      <div className="text-[12px] text-ink-2">
-        <b className="text-ink">{Math.round(pctDone * 100)}%</b> towards your {older ? "renovation" : "first car"} goal if you start today
+    <div className="mt-3 flex items-center gap-3 rounded-lg bg-surface-2 p-2">
+      <GoalShape shape={g.shape} pct={pct} size={52} />
+      <div className="text-[13px] text-ink-2">
+        <b className="text-ink">{g.label}</b>: {Math.round(pct * 100)}% there on day one, if you give that money this job.
       </div>
     </div>
   );
