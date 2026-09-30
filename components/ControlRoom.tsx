@@ -78,7 +78,7 @@ export function ControlRoom({
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">KBC side · Moments control room</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">KBC side · control room</div>
           <h1 className="text-2xl font-bold text-brand">Every customer, every night: one best action, or none.</h1>
         </div>
         <div className="flex items-center gap-2">
