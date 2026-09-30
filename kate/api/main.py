@@ -7,7 +7,7 @@
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -21,6 +21,7 @@ from kate.api import tools
 from kate.api.common import profile_or_404, public_nudge, public_profile, respond_to_nudge
 from kate.config import Settings, get_settings
 from kate.deps import get_event_publisher, get_store, get_voice
+from kate.engine import attention
 from kate.events import EventPublisher
 from kate.logs import setup_logging
 from kate.models import Category, Id
@@ -190,6 +191,19 @@ def spending(
 @app.get("/api/nudges")
 def nudges(p: Principal = Depends(require_customer), store: Store = Depends(get_store)) -> list[dict]:
     return [public_nudge(n) for n in store.list_nudges(p.customer_id, limit=30)]
+
+
+@app.get("/api/attention")
+def attention_state(p: Principal = Depends(require_customer), store: Store = Depends(get_store)) -> dict:
+    """Weekly interruption budget and learned relevance per topic; protective moments do not count."""
+    profile = profile_or_404(store, p.customer_id)
+    now = datetime.now(UTC)
+    recent = store.nudges_since(p.customer_id, now - timedelta(days=7))
+    budget = int(profile.get("attention_budget") or attention.WEEKLY_BUDGET)
+    return {"budget": budget, "used": attention.interruptions_this_week(recent, now),
+            "relevance": profile.get("relevance") or {}, "min_priority": attention.MIN_PRIORITY,
+            "scoring": {k: {"urgency": u, "cost": c, "protective": k in attention.PROTECTIVE}
+                        for k, (u, c) in attention.SCORING.items()}}
 
 
 class NudgeResponse(BaseModel):

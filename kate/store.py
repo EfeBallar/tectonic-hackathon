@@ -66,8 +66,13 @@ class Store:
             update["muted_topics"] = firestore.ArrayUnion([topic])
         self._customer(customer_id).update(update)
 
+    def set_relevance(self, customer_id: str, topic: str, value: float) -> None:
+        """topic comes from the fixed Topic vocabulary, so it is safe as a field path."""
+        self._customer(customer_id).update({f"relevance.{topic}": value, "updated_at": datetime.now(UTC)})
+
     def reset_demo(self, customer_id: str) -> int:
-        self._customer(customer_id).update({"demo_epoch": datetime.now(UTC), "memory": [], "muted_topics": []})
+        self._customer(customer_id).update(
+            {"demo_epoch": datetime.now(UTC), "memory": [], "muted_topics": [], "relevance": {}})
         return self.delete_nudges(customer_id)
 
     # --- Firestore: nudges ---------------------------------------------------------------------

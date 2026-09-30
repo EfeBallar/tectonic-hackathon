@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 
+from kate.engine import forecast
 from kate.models import SIGNAL_TOPICS, Category, Transaction
 
 HOME_COUNTRY = "BE"
@@ -110,16 +111,22 @@ def vehicle_purchase(txn: Transaction, history: list[dict]) -> Signal | None:
 
 @detector
 def cashflow_risk(txn: Transaction, history: list[dict]) -> Signal | None:
-    if txn.balance_after is None or txn.balance_after >= LOW_BALANCE_EUR or txn.amount >= 0:
+    """Money going out while the 30-day forecast dips below zero (or today's balance is already low)."""
+    if txn.balance_after is None or txn.amount >= 0:
         return None
     since = txn.booked_at - timedelta(days=30)
     fixed = [h for h in history if h["category"] in FIXED_COST_CATEGORIES and h["amount"] < 0 and h["booked_at"] >= since]
     if not fixed:
         return None
+    outlook = forecast.project(txn.balance_after, history, txn.booked_at)
+    if txn.balance_after >= LOW_BALANCE_EUR and outlook["first_negative_on"] is None:
+        return None
     monthly_fixed = -sum(h["amount"] for h in fixed)
     return Signal(
         "cashflow_risk",
-        0.75,
+        0.85 if outlook["first_negative_on"] else 0.75,
         {"balance_after": txn.balance_after, "monthly_fixed_costs": round(monthly_fixed, 2),
-         "largest_fixed_cost": max(fixed, key=lambda h: -h["amount"])["counterparty"]},
+         "largest_fixed_cost": max(fixed, key=lambda h: -h["amount"])["counterparty"],
+         "forecast": {k: v for k, v in outlook.items() if k != "daily_balance"},
+         "daily_balance": outlook["daily_balance"]},
     )

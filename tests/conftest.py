@@ -60,8 +60,12 @@ class FakeStore:
         if mute_topic and topic and topic not in customer.setdefault("muted_topics", []):
             customer["muted_topics"].append(topic)
 
+    def set_relevance(self, customer_id, topic, value):
+        self.customers[customer_id].setdefault("relevance", {})[topic] = value
+
     def reset_demo(self, customer_id):
         self.customers[customer_id]["demo_epoch"] = datetime.now(UTC)
+        self.customers[customer_id]["relevance"] = {}
         return self.delete_nudges(customer_id)
 
     # nudges

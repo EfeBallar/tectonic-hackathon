@@ -20,8 +20,9 @@ def test_policy_rules():
     assert policy.decide(Signal("moved_house", 0.2, {}), PROFILE, [], NOW).reason == "low_confidence"
     recent_same = [{"signal_type": "moved_house", "created_at": NOW - timedelta(days=3)}]
     assert policy.decide(MOVED, PROFILE, recent_same, NOW).reason == "cooldown"
+    # A busy week no longer blocks here: the weekly budget is enforced by the attention race.
     busy_week = [{"signal_type": f"other_{i}", "created_at": NOW - timedelta(days=i)} for i in range(3)]
-    assert policy.decide(MOVED, PROFILE, busy_week, NOW).reason == "weekly_cap"
+    assert policy.decide(MOVED, PROFILE, busy_week, NOW).allowed
     assert policy.decide(MOVED, PROFILE, [], NOW).allowed
 
 

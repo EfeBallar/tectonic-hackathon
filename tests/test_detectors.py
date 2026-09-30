@@ -15,7 +15,8 @@ def history(customer_id: str) -> list[dict]:
 
 def txn(customer_id="D001", **fields) -> Transaction:
     base = {"transaction_id": "t-test-1", "customer_id": customer_id, "booked_at": NOW, "amount": -10.0,
-            "counterparty": "Somebody", "category": Category.OTHER, "balance_after": 1000.0}
+            "counterparty": "Somebody", "category": Category.OTHER,
+            "balance_after": PERSONAS[customer_id].final_balance}
     return Transaction(**{**base, **fields})
 
 

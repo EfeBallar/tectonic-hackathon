@@ -1,10 +1,10 @@
-"""transaction -> signals -> contact policy -> Gemini -> nudge (Firestore) + audit trail (BigQuery)."""
+"""transaction -> signals -> contact policy -> attention race -> Gemini (winner only) -> nudge + audit trail."""
 
 import hashlib
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 
-from kate.engine import policy
+from kate.engine import attention, policy
 from kate.engine.composer import NudgeDraft, compose
 from kate.engine.detectors import Signal, detect
 from kate.models import NudgeStatus, Transaction
@@ -34,42 +34,57 @@ def process_transaction(
     recent = store.nudges_since(txn.customer_id, now - policy.SAME_SIGNAL_COOLDOWN) if signals and profile else []
     outcome: dict = {"transaction_id": txn.transaction_id, "customer_id": txn.customer_id, "signals": []}
 
+    decisions: dict[int, str] = {}
+    eligible = []
     for signal in signals:
         decision = policy.decide(signal, profile, recent, now)
-        result = {"signal_type": signal.signal_type, "decision": decision.reason}
+        decisions[id(signal)] = decision.reason
         if decision.allowed:
-            draft, composer_name = composer(signal, txn, profile)
-            if not draft.should_contact:
-                result["decision"] = "composer_declined"
-            else:
-                nudge = {
-                    "nudge_id": nudge_id_for(txn.customer_id, signal.signal_type, now.date()),
-                    "customer_id": txn.customer_id,
-                    "signal_type": signal.signal_type,
-                    "topic": signal.topic,
-                    "status": NudgeStatus.NEW.value,
-                    "created_at": now,
-                    "language": profile.get("language", "en"),
-                    "title": draft.title,
-                    "message": draft.message,
-                    "spoken_message": draft.spoken_message,
-                    "reason": draft.reason,
-                    "suggested_actions": draft.suggested_actions,
-                    "product_ids": draft.product_ids,
-                    "urgency": draft.urgency,
-                    "confidence": signal.confidence,
-                    "evidence": signal.evidence,
-                    "transaction_id": txn.transaction_id,
-                    "composer": composer_name,
-                }
-                if store.create_nudge(nudge):
-                    store.record_nudge_event(nudge, "created", {"composer": composer_name})
-                    recent.append(nudge)
-                    result["decision"] = "nudged"
-                    result["nudge_id"] = nudge["nudge_id"]
-                else:
-                    result["decision"] = "duplicate"
+            eligible.append(signal)
 
+    # One slot per event: the moments compete, only the winner is composed (and costs a Gemini call).
+    race = attention.race(eligible, profile, recent, now)
+    for scored, verdict in race.outcomes:
+        decisions[id(scored.signal)] = verdict
+    nudge_ids: dict[int, str] = {}
+    if race.winner is not None:
+        signal = race.winner.signal
+        draft, composer_name = composer(signal, txn, profile)
+        if not draft.should_contact:
+            decisions[id(signal)] = "composer_declined"
+        else:
+            nudge = {
+                "nudge_id": nudge_id_for(txn.customer_id, signal.signal_type, now.date()),
+                "customer_id": txn.customer_id,
+                "signal_type": signal.signal_type,
+                "topic": signal.topic,
+                "status": NudgeStatus.NEW.value,
+                "created_at": now,
+                "language": profile.get("language", "en"),
+                "title": draft.title,
+                "message": draft.message,
+                "spoken_message": draft.spoken_message,
+                "reason": draft.reason,
+                "suggested_actions": draft.suggested_actions,
+                "product_ids": draft.product_ids,
+                "urgency": draft.urgency,
+                "confidence": signal.confidence,
+                "evidence": signal.evidence,
+                "attention": race.attention(),
+                "transaction_id": txn.transaction_id,
+                "composer": composer_name,
+            }
+            if store.create_nudge(nudge):
+                store.record_nudge_event(nudge, "created", {"composer": composer_name})
+                decisions[id(signal)] = "nudged"
+                nudge_ids[id(signal)] = nudge["nudge_id"]
+            else:
+                decisions[id(signal)] = "duplicate"
+
+    for signal in signals:
+        result = {"signal_type": signal.signal_type, "decision": decisions[id(signal)]}
+        if id(signal) in nudge_ids:
+            result["nudge_id"] = nudge_ids[id(signal)]
         store.record_signal({
             "signal_id": _hash_id(txn.transaction_id, signal.signal_type),
             "customer_id": txn.customer_id,
