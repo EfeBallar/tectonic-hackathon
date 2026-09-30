@@ -31,7 +31,7 @@ export const HEROES: { id: number; emoji: string; label: string; story: string; 
     label: "Student · scam call",
     story: "A fake “KBC advisor” is on the phone, AnyDesk is open, she's about to send her savings to a “safe account”.",
     customer: base({
-      id: -1, name: "Noor Aerts", age: 20, segment: "student",
+      id: -1, name: "Noor Aerts", age: 20, segment: "student", cardExpiresInDays: 19,
       baseline: { monthlyIncome: 650, typicalMaxPayment: 180, usualCountry: "BE", usualHours: [8, 24], appSessionsPerWeek: 12, knownPayees: 9, usualCurrency: "EUR" },
       products: { savings: true, investments: false, homeInsurance: false, carInsurance: false, travelInsurance: false, mortgage: false },
       checking: 640, savingsBalance: 1900, daysToPayday: 9, billsDueInDays: 3, upcomingOutflows: 120, dailySpend: 14, salaryPrev: 650, salaryNow: 650, savingsIdleDays: 20,
@@ -58,6 +58,7 @@ export const HEROES: { id: number; emoji: string; label: string; story: string; 
         { daysAgo: 3, label: "NMBS", amount: -18 },
       ],
       changedDomiciliations: [{ label: "Engie energy", usual: 105, now: 118, daysAgo: 2 }],
+      newDomiciliations: [{ label: "Disney+", amount: 11, daysAgo: 4 }, { label: "Basic-Fit", amount: 29, daysAgo: 12 }, { label: "Audible", amount: 10, daysAgo: 20 }],
     }),
   },
   {
@@ -71,6 +72,8 @@ export const HEROES: { id: number; emoji: string; label: string; story: string; 
       products: { savings: true, investments: false, homeInsurance: true, carInsurance: true, travelInsurance: false, mortgage: true },
       checking: 3100, savingsBalance: 12800, daysToPayday: 11, billsDueInDays: 4, upcomingOutflows: 1100, dailySpend: 60, salaryPrev: 4200, salaryNow: 4200, savingsIdleDays: 142,
       recent: [{ daysAgo: 2, label: "Aldi Kessel-Lo", amount: -88.1 }, { daysAgo: 4, label: "Total fuel", amount: -71 }],
+      newDomiciliations: [{ label: "Disney+", amount: 11, daysAgo: 4 }, { label: "Basic-Fit", amount: 29, daysAgo: 12 }, { label: "Audible", amount: 10, daysAgo: 20 }],
+      relevance: { subscription_creep: 0.4 },
     }),
   },
   {
@@ -99,13 +102,14 @@ export const HEROES: { id: number; emoji: string; label: string; story: string; 
     id: -5,
     emoji: "👶",
     label: "New parent · all good",
-    story: "Busy life, finances fine. A baby shop payment is there, and KBC deliberately ignores it. Kate stays silent.",
+    story: "Finances fine, and KBC already spoke to her 3 times this week. The subscription tip waits. The baby shop payment is ignored on purpose.",
     customer: base({
       id: -5, name: "Sofie Maes", age: 33, segment: "family",
       baseline: { monthlyIncome: 3600, typicalMaxPayment: 1100, usualCountry: "BE", usualHours: [6, 24], appSessionsPerWeek: 7, knownPayees: 27, usualCurrency: "EUR" },
       products: { savings: true, investments: true, homeInsurance: true, carInsurance: true, travelInsurance: true, mortgage: true },
       checking: 2900, savingsBalance: 6200, daysToPayday: 8, billsDueInDays: 3, upcomingOutflows: 1350, dailySpend: 55, salaryPrev: 3600, salaryNow: 3600, savingsIdleDays: 12,
-      interruptionsThisWeek: 1,
+      interruptionsThisWeek: 3,
+      newDomiciliations: [{ label: "Disney+", amount: 11, daysAgo: 4 }, { label: "Basic-Fit", amount: 29, daysAgo: 12 }, { label: "Audible", amount: 10, daysAgo: 20 }],
       recent: [
         { daysAgo: 1, label: "Dreambaby Leuven", amount: -142 },
         { daysAgo: 2, label: "IKEA Zaventem", amount: -89, tag: "furniture" },
