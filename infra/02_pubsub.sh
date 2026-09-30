@@ -19,7 +19,10 @@ fi
 "${GC[@]}" pubsub topics add-iam-policy-binding "$TOPIC" \
   --member="serviceAccount:$SA_API" --role=roles/pubsub.publisher >/dev/null
 
-# The Pub/Sub service agent forwards dead letters.
+# The Pub/Sub service agent forwards dead letters. Fresh projects create it lazily, so ask for it now.
+curl -fsS -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Length: 0" \
+  "https://serviceusage.googleapis.com/v1beta1/projects/$GCP_PROJECT_ID/services/pubsub.googleapis.com:generateServiceIdentity" \
+  >/dev/null || warn "could not create the Pub/Sub service agent"
 PUBSUB_AGENT="service-$(project_number)@gcp-sa-pubsub.iam.gserviceaccount.com"
 "${GC[@]}" pubsub topics add-iam-policy-binding "$DLQ_TOPIC" \
   --member="serviceAccount:$PUBSUB_AGENT" --role=roles/pubsub.publisher >/dev/null \
