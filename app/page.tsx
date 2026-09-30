@@ -40,13 +40,16 @@ export default function Page() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[1500px] flex-col-reverse items-start gap-6 p-4 lg:flex-row lg:p-6">
+    <main className="flex min-h-screen flex-col-reverse lg:flex-row">
       <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={setSelectedId} />
-      <div className="sticky top-6 flex flex-col items-center gap-2 self-center lg:self-start">
-        <div className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">Customer side · {customer.name}, {customer.age}, {customer.segment.replace("_", " ")}</div>
+      <aside className="flex flex-col items-center gap-3 bg-page px-4 py-8 lg:sticky lg:top-0 lg:h-screen lg:w-[480px] lg:shrink-0 lg:overflow-y-auto">
+        <div className="w-full max-w-[390px]">
+          <h2 className="text-[20px] font-bold text-ink">Next morning, in {customer.name.split(" ")[0]}&apos;s app</h2>
+          <p className="text-[14px] text-ink-2">{customer.age}, {customer.segment.replace("_", " ")}, {customer.city}. Synthetic customer.</p>
+        </div>
         <MomentPhone key={selectedId} customer={customer} decision={decision} onConsent={onConsent} onFeedback={onFeedback} />
-        <div className="max-w-[390px] text-center text-[11px] text-ink-3">Hackathon prototype. Not an official KBC app. All customers are synthetic.</div>
-      </div>
+        <p className="max-w-[390px] text-center text-[12px] text-ink-3">Hackathon prototype, not an official KBC app.</p>
+      </aside>
     </main>
   );
 }

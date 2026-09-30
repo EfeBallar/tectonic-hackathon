@@ -1,37 +1,42 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { HEROES } from "@/lib/heroes";
 import { MOMENTS, NOT_DETECTED, type MomentId, type Pillar } from "@/lib/moments";
-import { POLICY, type HoldReason } from "@/lib/orchestrator";
+import type { HoldReason } from "@/lib/orchestrator";
 import { emptyStats, runChunk, type Patch, type PassStats, type SampleKey } from "@/lib/pass";
 import type { Channel } from "@/lib/population";
-import { HEROES } from "@/lib/heroes";
 
 const SIZES = [
-  { n: 100_000, label: "100k" },
-  { n: 1_000_000, label: "1M" },
-  { n: 2_300_000, label: "2.3M (all of KBC)" },
+  { n: 100_000, label: "100,000 customers" },
+  { n: 1_000_000, label: "1 million customers" },
+  { n: 2_300_000, label: "All 2.3 million customers" },
 ];
 const CHUNK = 25_000;
 
-const PILLAR_CLS: Record<Pillar, string> = {
-  protect: "bg-crit-soft text-crit",
-  support: "bg-warn-soft text-warn",
-  guide: "bg-good-soft text-good",
-};
-const HOLD_LABEL: Record<HoldReason, string> = {
-  low_confidence: "Not sure enough",
-  no_consent: "Held by consent",
-  muted: "Muted by the customer",
-  budget_full: "Attention budget full",
-  not_worth_it: "Not worth an interruption",
-  lower_priority: "Lost the slot to a more important moment",
-};
-const CHANNEL_LABEL: Record<Channel, string> = { app: "App card", push: "Push", kate: "Kate chat", email: "Email", advisor: "Advisor" };
-const CHANNEL_CLS: Record<Channel, string> = { app: "bg-accent", push: "bg-brand", kate: "bg-[#6c5ce7]", email: "bg-ink-3", advisor: "bg-good" };
+const PILLARS: { id: Pillar; label: string; dot: string }[] = [
+  { id: "protect", label: "Protect", dot: "bg-protect" },
+  { id: "support", label: "Support", dot: "bg-amber" },
+  { id: "guide", label: "Guide", dot: "bg-calm" },
+];
+const HOLDS: { id: HoldReason; label: string }[] = [
+  { id: "budget_full", label: "Attention budget already used this week" },
+  { id: "lower_priority", label: "Lost the slot to something more urgent" },
+  { id: "not_worth_it", label: "Not worth an interruption" },
+  { id: "no_consent", label: "Customer switched off offers" },
+  { id: "muted", label: "Customer muted this kind of message" },
+  { id: "low_confidence", label: "Signals too weak to be sure" },
+];
+const CHANNELS: { id: Channel; label: string; cls: string }[] = [
+  { id: "app", label: "App card", cls: "bg-signal" },
+  { id: "push", label: "Push", cls: "bg-white" },
+  { id: "kate", label: "Kate", cls: "bg-[#7FD3F7]" },
+  { id: "email", label: "Email", cls: "bg-white/40" },
+  { id: "advisor", label: "Advisor", cls: "bg-calm" },
+];
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
-const eurM = (n: number) => (n >= 1e6 ? `€${(n / 1e6).toFixed(1)}M` : `€${fmt(n / 1000)}k`);
+const eurShort = (n: number) => (n >= 1e6 ? `€${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `€${Math.round(n / 1e3)}k` : `€${Math.round(n)}`);
 
 export function ControlRoom({
   stats,
@@ -74,244 +79,229 @@ export function ControlRoom({
     setTimeout(step, 0);
   }
 
-  const st = stats;
-  const perCustUs = st && st.scanned ? (st.ms * 1000) / st.scanned : 0;
+  const st = stats ?? emptyStats();
+  const has = st.scanned > 0;
+  const perCustUs = has ? (st.ms * 1000) / st.scanned : 0;
   const fullKbcSec = (perCustUs * 2_300_000) / 1e6;
-  const sampleIds = st?.samples[filter] ?? [];
-  const totalChannels = st ? Object.values(st.channels).reduce((a, b) => a + (b || 0), 0) : 0;
+  const totalChannels = CHANNELS.reduce((a, c) => a + (st.channels[c.id] ?? 0), 0);
+  const maxHold = Math.max(1, st.none, ...HOLDS.map((h) => st.held[h.id] ?? 0));
+  const sampleIds = st.samples[filter] ?? [];
+  const filterName = filter === "none" ? "Nothing worth saying" : HOLDS.find((h) => h.id === filter)?.label ?? MOMENTS.find((m) => m.id === filter)?.label;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      {/* header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">KBC side · control room</div>
-          <h1 className="text-2xl font-bold text-brand">Every customer, every night: one best action, or none.</h1>
+    <section className="flex min-w-0 flex-1 flex-col gap-10 bg-night px-5 py-8 text-white lg:px-10">
+      <header className="flex flex-wrap items-end justify-between gap-6">
+        <div className="max-w-xl">
+          <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-tight">Tonight at KBC</h1>
+          <p className="mt-2 text-[17px] text-white/70">Every customer, every night: one best action, or none. Protection is never rationed.</p>
         </div>
         <div className="flex items-center gap-2">
+          <label className="sr-only" htmlFor="size">Population</label>
           <select
+            id="size"
             value={size}
             disabled={running}
             onChange={(e) => setSize(Number(e.target.value))}
-            className="h-10 rounded-full border border-line bg-surface px-3 text-sm"
+            className="h-11 rounded-lg border border-white/20 bg-night-2 px-3 text-[15px] text-white"
           >
-            {SIZES.map((x) => (
-              <option key={x.n} value={x.n}>{x.label} customers</option>
-            ))}
+            {SIZES.map((x) => <option key={x.n} value={x.n}>{x.label}</option>)}
           </select>
           {running ? (
-            <button onClick={() => (stop.current = true)} className="h-10 rounded-full bg-ink-2 px-5 text-sm font-semibold text-white">Stop</button>
+            <button onClick={() => (stop.current = true)} className="h-11 rounded-lg border border-white/30 px-5 font-semibold">Stop</button>
           ) : (
-            <button onClick={() => run()} className="h-10 rounded-full bg-accent px-5 text-sm font-semibold text-white shadow hover:brightness-110">
-              ▶ Run nightly pass
+            <button onClick={() => run()} className="h-11 rounded-lg bg-signal px-5 font-bold text-night hover:brightness-110">
+              {has ? "Run again" : "Run the nightly pass"}
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* hand-written demo customers */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-        {HEROES.map((h) => (
-          <button
-            key={h.id}
-            onClick={() => onSelect(h.id)}
-            title={h.story}
-            className={`rounded-2xl border p-3 text-left transition ${selectedId === h.id ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-accent/50"}`}
-          >
-            <div className="text-xl">{h.emoji}</div>
-            <div className="text-[13px] font-semibold leading-tight">{h.customer.name.split(" ")[0]}</div>
-            <div className="text-[11px] leading-tight text-ink-3">{h.label}</div>
-          </button>
-        ))}
-      </div>
-
-      {/* progress + throughput */}
-      <div className="rounded-2xl border border-line bg-surface p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-          <div className="text-ink-2">
-            <b className="tabular text-ink">{fmt(st?.scanned ?? 0)}</b> synthetic customers scanned
-            {st && st.scanned > 0 && (
-              <> in <b className="tabular text-ink">{(st.ms / 1000).toFixed(1)}s</b> · <b className="tabular text-ink">{perCustUs.toFixed(1)} µs</b>/customer</>
+      {/* the funnel: the one bold element */}
+      <div>
+        <Funnel label="Customers scanned" value={st.scanned} of={Math.max(1, st.scanned)} tone="bg-white/85" />
+        <Funnel label="Moments detected" value={st.moments} of={Math.max(1, st.scanned)} tone="bg-signal/60" />
+        <Funnel label="Shown to a customer" value={st.withAction} of={Math.max(1, st.scanned)} tone="bg-signal" strong />
+        <div className="mt-1 h-1 overflow-hidden rounded bg-white/10" aria-hidden>
+          <div className="h-full bg-signal transition-[width]" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-[15px] text-white/75">
+          <span>
+            {has ? (
+              <>
+                {fmt(st.scanned)} customers in <b className="text-white">{(st.ms / 1000).toFixed(1)} s</b>, {perCustUs.toFixed(1)} µs each. All of KBC fits in about {Math.max(1, Math.round(fullKbcSec))} s on one browser thread.
+              </>
+            ) : (
+              "Customers are generated from a seed on the fly and never stored, so memory stays flat at 2.3 million."
             )}
-          </div>
-          {st && st.scanned > 0 && (
-            <div className="text-ink-2">
-              All 2.3M KBC customers ≈ <b className="text-ink">{fullKbcSec.toFixed(0)}s</b> on one browser thread · embarrassingly parallel
-            </div>
-          )}
+          </span>
+          <span className="flex items-center gap-3">
+            <label htmlFor="budget" className="text-white">Attention budget</label>
+            <input
+              id="budget"
+              type="range" min={1} max={5} value={budget} disabled={running}
+              onChange={(e) => { const b = Number(e.target.value); setBudget(b); if (has) run(b); }}
+              className="w-32 accent-[#00AEEF]"
+            />
+            <b className="tabular text-white">{budget} per week</b>
+          </span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${progress * 100}%` }} />
-        </div>
-        <div className="mt-2 text-[12px] text-ink-3">
-          signals → recognition (baseline + live state) → moment detection → decision policy → channel → customer approves
+        {has && (
+          <p className="mt-2 text-[14px] text-white/55">
+            {fmt(st.moments - st.withAction)} interruptions saved. Priority = urgency × confidence × relevance to this customer − the cost of interrupting.
+          </p>
+        )}
+      </div>
+
+      {/* five people */}
+      <div>
+        <h2 className="text-[20px] font-bold">Five customers to open</h2>
+        <div className="mt-3 grid gap-px overflow-hidden rounded-xl bg-white/10 sm:grid-cols-5">
+          {HEROES.map((h) => {
+            const on = selectedId === h.id;
+            return (
+              <button
+                key={h.id}
+                onClick={() => onSelect(h.id)}
+                className={`flex flex-col gap-1 p-4 text-left transition ${on ? "bg-signal text-night" : "bg-night-2 hover:bg-night-3"}`}
+              >
+                <span className="text-[16px] font-bold">{h.customer.name.split(" ")[0]}, {h.customer.age}</span>
+                <span className={`text-[13px] leading-snug ${on ? "text-night/80" : "text-white/65"}`}>{h.label.split(" · ")[1]}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {!st ? (
-        <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-line p-10 text-center text-ink-3">
-          Press “Run nightly pass”. Customers are generated from seeds on the fly, never stored.
+      {has && (
+        <div className="grid gap-10 xl:grid-cols-2">
+          <div className="flex flex-col gap-10">
+            <div>
+              <h2 className="text-[20px] font-bold">What it caught</h2>
+              <dl className="mt-3 grid grid-cols-2 gap-y-5 border-t border-white/15 pt-4">
+                <Figure k="Scam payments paused" v={fmt(st.impact.scamsPaused)} note={`${eurShort(st.impact.scamEurPaused)} kept from scammers`} red />
+                <Figure k="Overdrafts seen coming" v={fmt(st.impact.overdraftsCaught)} note="flagged before the account went negative" />
+                <Figure k="Bills paid twice" v={fmt(st.chosen.duplicate_bill ?? 0)} note={`${eurShort(st.impact.duplicateEur)} to get back`} />
+                <Figure k="Idle money given a goal" v={eurShort(st.impact.idleEur)} note="above 3 months of expenses" />
+              </dl>
+            </div>
+
+            <div>
+              <h2 className="text-[20px] font-bold">Why the rest stayed quiet</h2>
+              <ul className="mt-3 border-t border-white/15">
+                <HoldRow label="Nothing worth saying" value={st.none} max={maxHold} active={filter === "none"} onClick={() => setFilter("none")} calm />
+                {HOLDS.map((h) => (
+                  <HoldRow key={h.id} label={h.label} value={st.held[h.id] ?? 0} max={maxHold} active={filter === h.id} onClick={() => setFilter(h.id)} />
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div>
+              <h2 className="text-[20px] font-bold">Moments, by what they do for the customer</h2>
+              <div className="mt-3 border-t border-white/15">
+                {PILLARS.map((p) => (
+                  <div key={p.id} className="border-b border-white/15 py-3">
+                    <div className="flex items-center gap-2 text-[14px] font-semibold text-white/80">
+                      <span className={`h-2 w-2 rounded-full ${p.dot}`} /> {p.label}
+                    </div>
+                    <ul className="mt-1">
+                      {MOMENTS.filter((m) => m.pillar === p.id).map((m) => (
+                        <li key={m.id}>
+                          <button
+                            onClick={() => setFilter(m.id as MomentId)}
+                            className={`grid w-full grid-cols-[1fr_auto_auto] items-baseline gap-4 rounded px-2 py-1 text-left text-[15px] ${filter === m.id ? "bg-white/10" : "hover:bg-white/5"}`}
+                          >
+                            <span>{m.label}{m.realtime && <span className="ml-2 text-[12px] text-signal">live</span>}</span>
+                            <span className="tabular text-white/50">{fmt(st.detectedBy[m.id] ?? 0)}</span>
+                            <span className="tabular w-16 text-right font-semibold">{fmt(st.chosen[m.id] ?? 0)}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <div className="flex justify-end gap-4 px-2 pt-1 text-[12px] text-white/45"><span>detected</span><span className="w-16 text-right">shown</span></div>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-[20px] font-bold">One decision, the right channel</h2>
+              <div className="mt-3 flex h-3 overflow-hidden rounded">
+                {CHANNELS.map((c) => (
+                  <div key={c.id} className={c.cls} style={{ width: `${((st.channels[c.id] ?? 0) / Math.max(1, totalChannels)) * 100}%` }} />
+                ))}
+              </div>
+              <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[14px] text-white/75">
+                {CHANNELS.map((c) => (
+                  <li key={c.id} className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${c.cls}`} />{c.label} <span className="tabular text-white">{fmt(st.channels[c.id] ?? 0)}</span></li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="text-[20px] font-bold">{filterName}</h2>
+              <p className="text-[14px] text-white/55">Open any of these customers in the app.</p>
+              <div className="mt-3 flex max-h-36 flex-wrap gap-1.5 overflow-y-auto">
+                {sampleIds.length === 0 && <span className="text-[14px] text-white/55">Nobody in this run.</span>}
+                {sampleIds.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => onSelect(id)}
+                    className={`tabular rounded-md px-2 py-1 text-[13px] ${selectedId === id ? "bg-signal text-night" : "bg-white/10 hover:bg-white/20"}`}
+                  >
+                    #{id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
-        <>
-          {/* the judge line: detected vs shown. The gap is the attention budget. */}
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-lg">
-              <span><b className="tabular">{fmt(st.scanned)}</b> <span className="text-ink-3">customers</span></span>
-              <span className="text-ink-3">→</span>
-              <span><b className="tabular">{fmt(st.moments)}</b> <span className="text-ink-3">moments detected</span></span>
-              <span className="text-ink-3">→</span>
-              <span className="text-accent"><b className="tabular">{fmt(st.withAction)}</b> <span>shown</span></span>
-              <span className="ml-auto rounded-full bg-good-soft px-3 py-1 text-sm font-semibold text-good">
-                {fmt(st.moments - st.withAction)} interruptions saved
-              </span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-              <span className="font-semibold">Attention budget</span>
-              <input
-                type="range" min={1} max={5} value={budget} disabled={running}
-                onChange={(e) => { const b = Number(e.target.value); setBudget(b); if (st) run(b); }}
-                className="w-40 accent-[var(--color-accent)]"
-              />
-              <span className="tabular font-semibold">{budget} / week</span>
-              <span className="text-[12px] text-ink-3">priority = urgency × confidence × relevance − interruption cost · scams bypass the budget</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Kpi label="No action needed" value={fmt(st.none)} sub="silence is a feature" tone="good" onClick={() => setFilter("none")} active={filter === "none"} />
-            <Kpi label="Budget full, waits" value={fmt(st.held.budget_full ?? 0)} sub="moments queued" onClick={() => setFilter("budget_full")} active={filter === "budget_full"} />
-            <Kpi label="Lost the slot" value={fmt(st.held.lower_priority ?? 0)} sub="a more urgent moment won" onClick={() => setFilter("lower_priority")} active={filter === "lower_priority"} />
-            <Kpi label="Held by consent" value={fmt((st.held.no_consent ?? 0) + (st.held.muted ?? 0))} sub="offers off or muted" onClick={() => setFilter("no_consent")} active={filter === "no_consent"} />
-            <Kpi label="Not sure enough" value={fmt(st.held.low_confidence ?? 0)} sub="ambiguous signals, stay quiet" onClick={() => setFilter("low_confidence")} active={filter === "low_confidence"} />
-          </div>
-
-          {/* impact */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Impact label="Scam payments paused" value={fmt(st.impact.scamsPaused)} sub={`${eurM(st.impact.scamEurPaused)} kept from scammers`} tone="crit" />
-            <Impact label="Overdrafts caught early" value={fmt(st.impact.overdraftsCaught)} sub="before the account went negative" tone="warn" />
-            <Impact label="Double payments caught" value={fmt(st.chosen.duplicate_bill ?? 0)} sub={`${eurM(st.impact.duplicateEur)} to refund`} tone="warn" />
-            <Impact label="Idle savings surfaced" value={eurM(st.impact.idleEur)} sub="above 3 months of expenses" tone="good" />
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            {/* moments table */}
-            <div className="rounded-2xl border border-line bg-surface p-4">
-              <div className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-ink-3">Moment library</div>
-              <table className="w-full text-sm">
-                <thead className="text-left text-[12px] text-ink-3">
-                  <tr>
-                    <th className="py-1 font-medium">Moment</th>
-                    <th className="font-medium">Pillar</th>
-                    <th className="font-medium">When</th>
-                    <th className="text-right font-medium">Detected</th>
-                    <th className="text-right font-medium">Acted</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOMENTS.map((m) => (
-                    <tr
-                      key={m.id}
-                      onClick={() => setFilter(m.id)}
-                      className={`cursor-pointer border-t border-line hover:bg-surface-2 ${filter === m.id ? "bg-accent-soft" : ""}`}
-                    >
-                      <td className="py-1.5 font-medium">
-                        {m.label}
-                        <span className="ml-1 text-[11px] text-ink-3">{m.productLine}{m.commercial ? " · offer" : ""}</span>
-                      </td>
-                      <td><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${PILLAR_CLS[m.pillar]}`}>{m.pillar}</span></td>
-                      <td className="text-[12px] text-ink-2">{m.realtime ? "live" : "nightly"}</td>
-                      <td className="tabular text-right">{fmt(st.detectedBy[m.id] ?? 0)}</td>
-                      <td className="tabular text-right font-semibold">{fmt(st.chosen[m.id] ?? 0)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              {/* channels */}
-              <div className="rounded-2xl border border-line bg-surface p-4">
-                <div className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-ink-3">One brain, every channel</div>
-                <div className="flex h-3 overflow-hidden rounded-full">
-                  {(Object.keys(CHANNEL_LABEL) as Channel[]).map((c) => (
-                    <div key={c} className={CHANNEL_CLS[c]} style={{ width: `${((st.channels[c] ?? 0) / Math.max(1, totalChannels)) * 100}%` }} />
-                  ))}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-ink-2">
-                  {(Object.keys(CHANNEL_LABEL) as Channel[]).map((c) => (
-                    <span key={c} className="inline-flex items-center gap-1">
-                      <span className={`h-2 w-2 rounded-full ${CHANNEL_CLS[c]}`} />
-                      {CHANNEL_LABEL[c]} <b className="tabular">{fmt(st.channels[c] ?? 0)}</b>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* customers */}
-              <div className="rounded-2xl border border-line bg-surface p-4">
-                <div className="mb-2 flex items-baseline justify-between">
-                  <div className="text-[13px] font-semibold uppercase tracking-wide text-ink-3">Customers · {filterLabel(filter)}</div>
-                  <div className="text-[11px] text-ink-3">click to open their app</div>
-                </div>
-                <div className="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto">
-                  {sampleIds.length === 0 && <div className="text-sm text-ink-3">None in this run.</div>}
-                  {sampleIds.map((id) => (
-                    <button
-                      key={id}
-                      onClick={() => onSelect(id)}
-                      className={`tabular rounded-full border px-2.5 py-1 text-[12px] ${selectedId === id ? "border-accent bg-accent text-white" : "border-line hover:border-accent"}`}
-                    >
-                      #{id}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* not detected */}
-              <div className="rounded-2xl border border-line bg-surface p-4">
-                <div className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-ink-3">Moments we deliberately don't detect</div>
-                <ul className="space-y-1 text-[13px] text-ink-2">
-                  {NOT_DETECTED.map((x) => (
-                    <li key={x.label}>🚫 <b className="text-ink">{x.label}</b> {x.why}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </>
       )}
+
+      <div className="border-t border-white/15 pt-6">
+        <h2 className="text-[20px] font-bold">What we refuse to detect</h2>
+        <ul className="mt-2 grid gap-x-8 gap-y-1 text-[15px] text-white/70 md:grid-cols-2">
+          {NOT_DETECTED.map((x) => <li key={x.label}><span className="text-white">{x.label}</span> {x.why}</li>)}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Funnel({ label, value, of, tone, strong }: { label: string; value: number; of: number; tone: string; strong?: boolean }) {
+  const w = value === 0 ? 0 : Math.max(1.5, (value / of) * 100);
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 py-2">
+      <div>
+        <div className="text-[15px] text-white/70">{label}</div>
+        <div className="mt-1 h-3 rounded-sm bg-white/5">
+          <div className={`h-full rounded-sm transition-[width] duration-300 ${tone}`} style={{ width: `${w}%` }} />
+        </div>
+      </div>
+      <div className={`tabular text-right leading-none ${strong ? "text-[44px] font-extrabold text-signal" : "text-[32px] font-bold"}`}>{fmt(value)}</div>
     </div>
   );
 }
 
-function filterLabel(k: SampleKey) {
-  if (k === "none") return "no action needed";
-  if (k in HOLD_LABEL) return HOLD_LABEL[k as HoldReason];
-  return MOMENTS.find((m) => m.id === (k as MomentId))?.label ?? k;
-}
-
-const pct = (a: number, b: number) => `${b ? Math.round((a / b) * 100) : 0}%`;
-
-function Kpi({ label, value, sub, tone, onClick, active }: { label: string; value: string; sub: string; tone?: "accent" | "good"; onClick?: () => void; active?: boolean }) {
+function Figure({ k, v, note, red }: { k: string; v: string; note: string; red?: boolean }) {
   return (
-    <div
-      onClick={onClick}
-      className={`rounded-2xl border bg-surface p-3 ${active ? "border-accent" : "border-line"} ${onClick ? "cursor-pointer hover:border-accent/50" : ""}`}
-    >
-      <div className="text-[12px] text-ink-3">{label}</div>
-      <div className={`tabular text-2xl font-bold ${tone === "accent" ? "text-accent" : tone === "good" ? "text-good" : "text-ink"}`}>{value}</div>
-      <div className="text-[11px] text-ink-3">{sub}</div>
+    <div className="pr-4">
+      <dt className="text-[14px] text-white/65">{k}</dt>
+      <dd className={`tabular text-[28px] font-extrabold leading-tight ${red ? "text-[#FF6B7A]" : ""}`}>{v}</dd>
+      <dd className="text-[13px] text-white/55">{note}</dd>
     </div>
   );
 }
 
-function Impact({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "crit" | "warn" | "good" }) {
-  const cls = { crit: "bg-crit-soft text-crit", warn: "bg-warn-soft text-warn", good: "bg-good-soft text-good" }[tone];
+function HoldRow({ label, value, max, active, onClick, calm }: { label: string; value: number; max: number; active: boolean; onClick: () => void; calm?: boolean }) {
   return (
-    <div className={`rounded-2xl p-3 ${cls}`}>
-      <div className="text-[12px] font-medium opacity-80">{label}</div>
-      <div className="tabular text-xl font-bold">{value}</div>
-      <div className="text-[11px] opacity-80">{sub}</div>
-    </div>
+    <li className="border-b border-white/10">
+      <button onClick={onClick} className={`grid w-full grid-cols-[minmax(0,1fr)_7rem_4.5rem] items-center gap-3 px-2 py-2 text-left text-[15px] ${active ? "bg-white/10" : "hover:bg-white/5"}`}>
+        <span>{label}</span>
+        <span className="h-1.5 rounded-sm bg-white/5"><span className={`block h-full rounded-sm ${calm ? "bg-calm" : "bg-white/50"}`} style={{ width: `${(value / max) * 100}%` }} /></span>
+        <span className="tabular text-right">{fmt(value)}</span>
+      </button>
+    </li>
   );
 }

@@ -2,24 +2,31 @@
 
 /* ---- Reskin here: every color in the app comes from these tokens ---- */
 @theme {
-  --color-page: #e9eef5;
+  --color-page: #eef2f6;
+  --color-night: #0a2a4a;
+  --color-night-2: #0f3558;
+  --color-night-3: #154268;
+  --color-signal: #00aeef;
+  --color-protect: #d7263d;
+  --color-amber: #e8a33d;
+  --color-calm: #1f8a5b;
   --color-surface: #ffffff;
   --color-surface-2: #f4f7fb;
   --color-ink: #0e1b2b;
   --color-ink-2: #4a5a6e;
   --color-ink-3: #8393a7;
   --color-line: #e2e8f0;
-  --color-brand: #0a3561;
-  --color-brand-2: #0f4c86;
-  --color-accent: #1a86dd;
-  --color-accent-soft: #e5f1fc;
+  --color-brand: #0a2a4a;
+  --color-brand-2: #0a2a4a;
+  --color-accent: #0079c1;
+  --color-accent-soft: #e3f3fb;
   --color-warn: #b86e00;
   --color-warn-soft: #fff3de;
-  --color-crit: #cc3129;
+  --color-crit: #d7263d;
   --color-crit-soft: #fdeceb;
-  --color-good: #1b8455;
+  --color-good: #1f8a5b;
   --color-good-soft: #e4f5ec;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -87,4 +94,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .anim-sheet, .anim-fade, .anim-pop { animation: none; }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
 }

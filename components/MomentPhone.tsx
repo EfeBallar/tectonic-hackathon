@@ -7,12 +7,13 @@ import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString("nl-BE")}`;
-const GROUP: Record<SignalGroup, { icon: string; label: string }> = {
-  money: { icon: "💶", label: "Money" },
-  behavior: { icon: "👆", label: "Behavior" },
-  context: { icon: "📱", label: "Context" },
-  life: { icon: "🏠", label: "Life" },
+const GROUP: Record<SignalGroup, { dot: string; label: string }> = {
+  money: { dot: "bg-accent", label: "Money" },
+  behavior: { dot: "bg-amber", label: "Behavior" },
+  context: { dot: "bg-protect", label: "Context" },
+  life: { dot: "bg-calm", label: "Life" },
 };
+const Dot = ({ g }: { g: SignalGroup }) => <span className={`mr-1.5 inline-block h-2 w-2 shrink-0 translate-y-[-1px] rounded-full ${GROUP[g].dot}`} aria-label={GROUP[g].label} />;
 const CHANNEL_TXT = { app: "In-app card", push: "Push notification", kate: "Kate chat", email: "Email", advisor: "Advisor call" } as const;
 
 type Tab = "home" | "privacy";
@@ -45,8 +46,8 @@ export function MomentPhone({
       <div className="flex items-center justify-between bg-brand px-6 pb-1 pt-2 text-[12px] font-semibold text-white">
         <span>{c.session ? `${String(c.session.hour).padStart(2, "0")}:12` : "09:41"}</span>
         <span className="flex items-center gap-1.5">
-          {c.session?.activeCall && <span className="rounded-full bg-good px-1.5 text-[10px]">📞 call</span>}
-          {c.session?.remoteAccessApp && <span className="rounded-full bg-warn px-1.5 text-[10px]">🖥 {c.session.remoteAccessApp}</span>}
+          {c.session?.activeCall && <span className="rounded bg-calm px-1.5 text-[10px]">On a call</span>}
+          {c.session?.remoteAccessApp && <span className="rounded bg-amber px-1.5 text-[10px] text-night">{c.session.remoteAccessApp} running</span>}
           <span>5G ▮▮▮</span>
         </span>
       </div>
@@ -54,12 +55,12 @@ export function MomentPhone({
       <div className="relative flex-1 overflow-y-auto no-scrollbar">
         {tab === "home" ? (
           <div className="pb-6">
-            <div className="bg-gradient-to-b from-brand to-brand-2 px-5 pb-14 pt-3 text-white">
-              <div className="text-[13px] opacity-80">KBC Mobile · synthetic customer #{c.id}</div>
+            <div className="bg-brand px-5 pb-14 pt-3 text-white">
+              <div className="text-[13px] opacity-70">KBC Mobile</div>
               <div className="text-xl font-bold">Hi {first}</div>
               <div className="mt-3 text-[12px] opacity-80">Current account</div>
               <div className="tabular text-3xl font-bold">{eur(c.checking)}</div>
-              <div className="text-[12px] opacity-80">Savings {eur(c.savingsBalance)} · payday in {c.daysToPayday} days</div>
+              <div className="text-[12px] opacity-80">Savings {eur(c.savingsBalance)}, salary in {c.daysToPayday} days</div>
               <div className="mt-2 flex items-center gap-1.5 text-[11px] opacity-90">
                 <span>KBC interrupted you</span>
                 {Array.from({ length: decision.budget.size }).map((_, i) => (
@@ -72,9 +73,9 @@ export function MomentPhone({
             <div className="-mt-10 space-y-3 px-4">
               {/* the one moment, or calm */}
               {m && act && !scamLive ? (
-                <div className="anim-pop rounded-2xl border border-line bg-surface p-4 shadow-lg">
+                <div className={`anim-pop rounded-xl border-l-4 bg-surface p-4 shadow-[0_8px_24px_-12px_rgba(10,42,74,0.35)] ${m.pillar === "protect" ? "border-protect" : m.pillar === "support" ? "border-amber" : "border-calm"}`}>
                   <div className="flex items-center justify-between">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${m.pillar === "protect" ? "bg-crit-soft text-crit" : m.pillar === "support" ? "bg-warn-soft text-warn" : "bg-good-soft text-good"}`}>
+                    <span className="text-[12px] font-semibold text-ink-2">
                       {m.pillar === "protect" ? "Protecting you" : m.pillar === "support" ? "Heads up" : "For you"}
                     </span>
                     <span className="text-[11px] text-ink-3">via {CHANNEL_TXT[chosen!.channel]}</span>
@@ -82,11 +83,11 @@ export function MomentPhone({
                   <div className="mt-2 text-[16px] font-semibold leading-snug">{act.title}</div>
                   <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{act.message}</p>
                   {chosen!.channel === "advisor" && (
-                    <div className="mt-2 rounded-xl bg-good-soft p-2 text-[12px] text-good">👩‍💼 An advisor will call you. They already have a short brief, so you won't have to repeat yourself.</div>
+                    <div className="mt-2 rounded-xl bg-good-soft p-2 text-[12px] text-good">An advisor will call you. They already have a short brief, so you won't have to repeat yourself.</div>
                   )}
                   {m.id === "idle_cash" && <GoalFill customer={c} />}
                   {done === m.id ? (
-                    <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">✓ Done. You can undo this in Activity.</div>
+                    <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">Done. You can undo this in Activity.</div>
                   ) : (
                     <div className="mt-3 flex gap-2">
                       <button onClick={() => { setDone(m.id); onFeedback(m.id, true); }} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
@@ -96,8 +97,8 @@ export function MomentPhone({
                   <button onClick={() => setWhy(true)} className="mt-2 w-full text-center text-[12px] font-semibold text-accent">Why am I seeing this?</button>
                 </div>
               ) : !scamLive ? (
-                <div className="rounded-2xl border border-line bg-surface p-4 shadow-lg">
-                  <div className="text-[15px] font-semibold">All good today ✓</div>
+                <div className="rounded-xl border-l-4 border-calm bg-surface p-4 shadow-[0_8px_24px_-12px_rgba(10,42,74,0.35)]">
+                  <div className="text-[15px] font-semibold">All good today</div>
                   <p className="mt-1 text-[13px] text-ink-2">Nothing needs your attention, so we won't bother you. We'll speak up when something matters.</p>
                   {decision.held.length > 0 && (
                     <button onClick={() => setWhy(true)} className="mt-2 text-[12px] font-semibold text-accent">Why is KBC quiet?</button>
@@ -108,7 +109,7 @@ export function MomentPhone({
               {/* recent evidence trail */}
               {c.recent.length > 0 && (
                 <div className="rounded-2xl border border-line bg-surface p-4">
-                  <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Recent</div>
+                  <div className="mb-1 text-[14px] font-semibold">Recent</div>
                   {c.recent.slice(0, 5).map((t, i) => (
                     <div key={i} className="flex justify-between border-t border-line py-1.5 text-[13px] first:border-0">
                       <span>{t.label}<span className="ml-1 text-[11px] text-ink-3">{t.daysAgo === 0 ? "today" : `${t.daysAgo}d ago`}</span></span>
@@ -135,7 +136,7 @@ export function MomentPhone({
       <div className="flex border-t border-line bg-surface text-[12px]">
         {(["home", "privacy"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 font-semibold ${tab === t ? "text-accent" : "text-ink-3"}`}>
-            {t === "home" ? "🏠 Home" : "🔒 What KBC knows"}
+            {t === "home" ? "Home" : "What KBC knows"}
           </button>
         ))}
       </div>
@@ -150,7 +151,7 @@ function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer;
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-surface anim-fade">
       <div className="bg-crit px-5 pb-5 pt-4 text-white">
-        <div className="text-[12px] font-semibold uppercase tracking-wide opacity-90">Payment paused · risk {Math.round(score * 100)}%</div>
+        <div className="text-[13px] font-semibold opacity-90">Payment paused, risk {Math.round(score * 100)}%</div>
         <div className="mt-1 text-xl font-bold leading-snug">
           {blocked ? "We stopped this payment" : "Stop. Is someone on the phone with you right now?"}
         </div>
@@ -159,7 +160,8 @@ function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer;
         <div className="rounded-2xl border border-line p-3 text-[13px]">
           <div className="text-ink-3">You were about to send</div>
           <div className="tabular text-2xl font-bold">{eur(a.amount)}</div>
-          <div className="text-ink-2">to “{a.payee.name}” · {a.payee.iban}</div>
+          <div className="text-ink-2">to “{a.payee.name}”</div>
+          <div className="tabular text-[12px] text-ink-3">{a.payee.iban}</div>
           <div className="text-[12px] text-ink-3">message: “{a.note}”</div>
         </div>
         {state === "paused" && (
@@ -172,10 +174,10 @@ function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer;
             <div className="rounded-2xl bg-crit-soft p-3 text-[13px]">
               <div className="mb-1 font-semibold text-crit">What we noticed</div>
               <ul className="space-y-0.5 text-ink-2">
-                {factors.slice(0, 6).map((f, i) => <li key={i}>{GROUP[f.group].icon} {f.text}</li>)}
+                {factors.slice(0, 6).map((f, i) => <li key={i} className="flex items-baseline"><Dot g={f.group} />{f.text}</li>)}
               </ul>
             </div>
-            <button onClick={() => setState("calling")} className="h-12 w-full rounded-full bg-accent text-[15px] font-semibold text-white">📞 Hang up, talk to a real KBC employee</button>
+            <button onClick={() => setState("calling")} className="h-12 w-full rounded-full bg-accent text-[15px] font-semibold text-white">Hang up and talk to a real KBC employee</button>
             <button onClick={() => setState("cancelled")} className="h-11 w-full rounded-full border border-line text-sm font-semibold">Cancel this payment</button>
             {!blocked && <button onClick={() => setState("cancelled")} className="w-full text-center text-[12px] text-ink-3">It's really me: send it after a 24h cooling-off period</button>}
             <button onClick={onWhy} className="w-full text-center text-[12px] font-semibold text-accent">Why did KBC pause this?</button>
@@ -188,7 +190,7 @@ function ScamGuard({ customer: c, score, factors, onWhy }: { customer: Customer;
           </div>
         )}
         {state === "cancelled" && (
-          <div className="rounded-2xl bg-good-soft p-4 text-[14px] font-semibold text-good">✓ Payment cancelled. {eur(a.amount)} is safe in your account.</div>
+          <div className="rounded-2xl bg-good-soft p-4 text-[14px] font-semibold text-good">Payment cancelled. {eur(a.amount)} is safe in your account.</div>
         )}
       </div>
     </div>
@@ -227,18 +229,18 @@ function WhySheet({ customer: c, decision: d, onClose }: { customer: Customer; d
         {chosen && det ? (
           <>
             <div className="text-[13px] text-ink-2">
-              Moment: <b className="text-ink">{MOMENT_BY_ID[chosen.momentId].label}</b> · confidence <b className="text-ink">{Math.round(chosen.confidence * 100)}%</b>
+              <b className="text-ink">{MOMENT_BY_ID[chosen.momentId].label}</b>, {Math.round(chosen.confidence * 100)}% confident
             </div>
             <Section title="Signals we used">
-              {det.evidence.map((e, i) => <li key={i}>{GROUP[e.group].icon} <span className="text-ink-3">{GROUP[e.group].label}:</span> {e.text}</li>)}
+              {det.evidence.map((e, i) => <li key={i} className="flex items-baseline"><Dot g={e.group} /><span><span className="text-ink-3">{GROUP[e.group].label}:</span> {e.text}</span></li>)}
             </Section>
             <Section title="Checks it passed">
-              {d.checks.map((x, i) => <li key={i}>✓ {x}</li>)}
+              {d.checks.map((x, i) => <li key={i} className="text-ink-2">{x}</li>)}
             </Section>
             <Section title="Competing for your attention this week">
               {d.ranked.map((r) => (
                 <li key={r.momentId} className="flex justify-between gap-2">
-                  <span className={r.momentId === chosen.momentId ? "font-semibold" : "text-ink-2"}>{r.momentId === chosen.momentId ? "▶ " : ""}{MOMENT_BY_ID[r.momentId].label}</span>
+                  <span className={r.momentId === chosen.momentId ? "font-semibold" : "text-ink-2"}>{MOMENT_BY_ID[r.momentId].label}</span>
                   <span className="tabular text-ink-3">{r.bypass ? "always" : r.priority.toFixed(2)}</span>
                 </li>
               ))}
@@ -266,7 +268,7 @@ function WhySheet({ customer: c, decision: d, onClose }: { customer: Customer; d
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-3">
-      <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">{title}</div>
+      <div className="mb-1 text-[14px] font-semibold">{title}</div>
       <ul className="space-y-1 text-[13px]">{children}</ul>
     </div>
   );
@@ -286,11 +288,12 @@ function Privacy({ customer: c, decision: d, onConsent }: { customer: Customer; 
         <Toggle label="Push notifications" sub="Otherwise we only show things inside the app" on={c.consent.push} onClick={() => toggle("push")} />
         <Toggle label="Advisor may contact me" sub="For big moments like moving or a new family member" on={c.consent.advisor} onClick={() => toggle("advisor")} />
         <div className="rounded-2xl bg-crit-soft p-3 text-[12px] text-crit">
-          🛡 Scam and fraud protection always stays on. It protects your money, it never sells you anything.
+          Scam and fraud protection always stays on. It protects your money, it never sells you anything.
         </div>
       </div>
 
-      <div className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Kinds of messages</div>
+      <div className="mt-6 text-[15px] font-semibold">Kinds of messages</div>
+      <p className="text-[12px] text-ink-3">Tap to switch one off.</p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {MOMENTS.filter((x) => x.pillar !== "protect").map((x) => {
           const muted = c.consent.muted?.includes(x.id);
@@ -306,11 +309,11 @@ function Privacy({ customer: c, decision: d, onConsent }: { customer: Customer; 
         })}
       </div>
 
-      <div className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Signals behind today's picture</div>
+      <div className="mt-6 text-[15px] font-semibold">Signals behind today&apos;s picture</div>
       {groups.size === 0 && <p className="mt-1 text-[13px] text-ink-2">Nothing stood out today.</p>}
       {[...groups.entries()].map(([g, items]) => (
         <div key={g} className="mt-2 rounded-2xl border border-line p-3 text-[13px]">
-          <div className="font-semibold">{GROUP[g].icon} {GROUP[g].label}</div>
+          <div className="flex items-baseline font-semibold"><Dot g={g} />{GROUP[g].label}</div>
           <ul className="mt-1 space-y-0.5 text-ink-2">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>
         </div>
       ))}
