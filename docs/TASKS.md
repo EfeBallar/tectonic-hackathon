@@ -1,60 +1,81 @@
-# Task board (single source of truth for who edits what)
+# Current task board
 
-Lead / integrator: **Claude Code**. Codex: security + docs + review.
-**PROPOSAL, not active until the PM picks a concept.** Tasks below assume the Moments candidate in `docs/SPEC.md`; X1-X3 (security) apply to any concept and can start now.
+**Current priority: merge our features and the teammate's GCP/ElevenLabs features,
+then complete the missing PM requirements in one product.**
+Use `MERGE_REQUIREMENTS.md` as the preservation/acceptance checklist. One connected
+customer journey and voice prove the first connection, not completion of the scope.
 
-## Rules for both agents
+Refetched for the active Claude merge at 20:57 Brussels, September 30. Read
+`../HANDOFF_TO_CLAUDE.md` first. Product name remains undecided.
 
-1. Only edit files you own below. Need a change in someone else's file? Write it under "Requests" at the bottom and tell the user.
-2. Claude owns `package.json`, `package-lock.json`, `tsconfig.json`. Nobody else runs `npm install` / adds deps.
-3. Before every commit: `npm run build` must pass. Commit only your own files (`git add <paths>`, never `git add -A`).
-4. `git pull --rebase` before push. Small commits, clear messages, no em-dashes.
-5. When you finish a task: tick it here, add one line of what you verified.
+## Ownership
 
-## File ownership
+| Owner | Scope |
+| --- | --- |
+| Active Claude session | Merge lead; app relocation, frontend/backend adapter, voice, dependencies, build config |
+| Codex | Assigned security/API work, docs, review, regression checks |
+| Teammate | Python/GCP/ElevenLabs platform and cloud setup; deployment health unverified |
+| PM/user | Customer experience, story, scope, naming, submission decisions |
 
-| Owner | Files |
-|---|---|
-| Claude | `lib/population.ts`, `lib/moments.ts`, `lib/orchestrator.ts`, `lib/types.ts`, `lib/actions.ts`, `lib/engine.ts`, `lib/personas.ts`, `app/page.tsx`, `components/**`, `scripts/**`, `package.json`, lockfile, `docs/TASKS.md` (structure) |
-| Codex | `app/api/**`, `lib/security.ts` (new), `lib/guard.ts`, `lib/llm.ts`, `lib/prompts.ts`, `next.config.mjs`, `README.md`, `.env.example`, `docs/PROJECT_CONTEXT.md`, `docs/SUBMISSION.md` (new) |
+One writer per file. Coordinate shared interfaces and dependency changes.
+Preserve the uncommitted lockfile and review/docs. Do not run competing builds.
 
-## Claude tasks (P0 then P1)
+## Git
 
-- [ ] C1 `lib/population.ts` deterministic customer generator + perf measurement
-- [ ] C2 `lib/moments.ts` detector library + NOT_DETECTED list
-- [ ] C3 `lib/orchestrator.ts` decide(): consent, contact budget, priority, channel
-- [ ] C4 `components/ControlRoom.tsx` nightly pass UI with KPIs + throughput
-- [ ] C5 phone integration: chosen moment as top card, why-this trace, BOOK_ADVISOR / VIEW_OFFER actions
-- [ ] C6 privacy screen with live re-decide
-- [ ] C7 advisor brief panel
-- [ ] C8 `npm run preview:build` + `docs/index.html` for GitHub Pages
+Local main `7580d75` and fetched origin/main `ed5f5cd` have independent histories.
+**No automatic pull/rebase.** Read remote files with local git show. Integration
+has been explained, not executed. Preserve both histories and dirty work.
+Use explicit owned paths when staging; no force-push or destructive resets.
+The latest fetch added `4d525ef` (Pub/Sub setup) and `ed5f5cd` (Gemini API-key
+support). Include both; earlier handoffs targeting only `300ad35` are stale.
 
-## Codex tasks
+## Implemented locally
 
-- [ ] X1 Security hardening of API routes (see SPEC section 5): new `lib/security.ts` with body size limit (200 KB), same-origin check, in-memory per-IP rate limit (30/min), input validation (question string <= 500 chars, state fields typed/bounded, arrays capped), generic errors. Apply to `app/api/ask` and `app/api/explain`. Do NOT delete `app/api/tts`: a teammate is building ElevenLabs/GCP infra.
-- [ ] X2 `next.config.mjs` security headers (CSP that still allows Next dev + inline styles, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy). Verify `npm run dev` page still loads with no CSP console errors.
-- [ ] X3 Run `npm audit` and report (do NOT install; put the needed bump under Requests, Claude applies it).
-- [ ] X4 `README.md` rewrite per SPEC section 6. Use placeholders like `{{N_CUSTOMERS}}` and `{{THROUGHPUT}}` for numbers until Claude fills them. Include security section + prep boilerplate disclosure.
-- [ ] X5 `docs/SUBMISSION.md`: Builderbase description (SPEC 1b template), video script (SPEC 8), checklist. Ready to paste.
-- [ ] X6 Review: after Claude ticks C3 and C5, review `lib/moments.ts`, `lib/orchestrator.ts`, `lib/actions.ts` for business-logic / security bugs. Report findings under Requests, don't edit.
+Seeded population, five heroes, detectors/ranker, attention-budget settings,
+30-day aggregate forecast, Customer/KBC views, in-memory actions/activity/goals,
+consent/muting, scam draft/Send/check/pause and distinct resolution options.
 
-## Shared interfaces (Claude defines, others read only)
+This is implementation status, not proof every edge case passes. The prior
+unchecked C/X roadmap and blank-project assignment are superseded.
 
-- `lib/types.ts`: FinState, Insight, ProposedAction, Analysis (existing)
-- `lib/population.ts`: `Customer`, `generateCustomer(id, today)`, `toFinState(customer)`
-- `lib/moments.ts`: `MomentDetector`, `Detection`, `DETECTORS`, `NOT_DETECTED`
-- `lib/orchestrator.ts`: `decide(customer, detections) -> Decision`
+## Open work
 
-## Requests (cross-owner changes, write here)
+- [ ] Preserve dirty work and both histories; prepare an isolated integration branch.
+- [ ] Combine backend root with the existing Next.js app in `web/`; reconcile configs.
+- [ ] Ensure the integration includes latest origin/main `ed5f5cd`, including both
+  new infra fixes, even if the merge was started from `300ad35`.
+- [ ] Verify existing API URL/region and define data, identity, and decision ownership.
+- [ ] Use Gemini API-key mode as Efe confirmed Vertex AI is blocked. Verify
+  server-side configuration/Secret Manager without exposing keys; keep GCP data
+  services and ElevenLabs intact. Do not claim BigQuery AI.GENERATE ran in this mode.
+- [ ] Connect login -> recommendation -> persisted feedback for one backend persona.
+- [ ] Integrate that journey with existing ElevenLabs audio/session APIs.
+  Live scam preflight needs a backend contract not currently present.
+- [ ] Verify the connected journey, backend tests, frontend build/typecheck, and
+  existing offline heroes; update run instructions. This is the first milestone.
+- [ ] Integrate our full attention ranking, 30-day forecast, per-customer feedback
+  and protective exceptions into the connected engine; preserve Efe's detectors,
+  storage, analytics and voice/tool features. A cap alone is not Attention Budget.
+- [ ] Track and complete PM gaps from MERGE_REQUIREMENTS.md: first recurring-payment
+  notice, incidents signal, transition projections, escalation and trusted contact.
+  Mark partial/not-built behavior explicitly; do not silently remove requirements.
+- [ ] Then address remaining PM requirements and demo-blocking review findings:
+  second-goal fund conservation, dismissed-message budget semantics, check-tier
+  warning suppression, asynchronous population-run cancellation. Recheck against
+  current commits before editing; fix integration/security blockers as encountered.
+- [ ] Decide which provider routes remain; validate/rate-limit those routes.
+  Preserve TTS while the teammate integrates voice; avoid duplicate auth designs.
+- [ ] Complete applicable API/security checks and dependency audit.
+- [ ] Verify cloud health/region and frontend hosting within the user's task.
+- [ ] Rewrite README around the actual combined result, limitations, and measured numbers.
+- [ ] Prepare description, video under 3 minutes, Aikido screenshots, public links.
 
-- Codex intake -> Claude: `AGENTS.md` still says no app/stack exists and points to
-  the obsolete planning handoff. Please align it with root `CLAUDE.md`, this board,
-  and `docs/SPEC.md`; `docs/PROJECT_CONTEXT.md` is now updated. No app code changed
-  by Codex during intake.
-- Codex intake -> team: confirm organizer policy on the reported pre-event starter.
-  Preserve its provenance; new Git history/disclosure alone does not establish
-  permission under the guide's build-during-slot rule.
-- Codex intake -> Claude: label linear scale projections as estimates and channel
-  routing as simulated unless implemented. Detector counts are not insurance gaps
-  actually closed. Respect channel settings even where prototype policy exempts
-  protective alerts from commercial consent/contact limits.
+## Evidence
+
+Codex: typecheck, five hero checks, seven targeted fix checks through 8aaba50;
+typecheck repeated at f9d0411. Later scam-opening build reported green by Claude,
+not independently verified by Codex. No browser/cloud verification by Codex.
+Teammate's source fetched and inspected. See CODE_REVIEW.md for evidence.
+
+PM notes: PROJECT_CONTEXT.md and ACTION_PLAN.md. Older proposals are historical.
+This task board does not instruct agents to perform unassigned work.

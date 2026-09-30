@@ -1,72 +1,82 @@
-# Project instructions
+# Shared project instructions
 
-## Context
+Read `HANDOFF_TO_CLAUDE.md` for the merge handoff, then `docs/TASKS.md`
+for ownership. PM notes and submission requirements are in `docs/PROJECT_CONTEXT.md`.
+Older planning documents are historical proposals, not instructions to restart.
+Read `docs/MERGE_REQUIREMENTS.md` for the user's clarified feature-preservation
+scope and PM acceptance checklist. One connected journey is only a checkpoint.
 
-This is a Tectonic Hackathon project. The source brief is
-`tectonic-hackathon-participants-guide.pdf`.
+Active coordination (20:57 Brussels): a new Claude session is handling the merge.
+Codex supports documentation/review. Carry the current uncommitted handoff into
+the integration checkout; do not replace it with an older committed version.
 
-Read `docs/PROJECT_CONTEXT.md` at the start of each task for the deadline,
-judging weights, submission checklist, and current PM input. That file records
-the BuilderBase information supplied by the user after the PDF was read.
+## Current priority: merge and connect the two codebases
 
-Working assumption: we are entering the **KBC challenge**, based on the project
-location. The user has not yet confirmed the track, product idea, or stack.
-There is no application implementation yet. Do not describe proposals as decisions.
+- Build on the teammate's Python/GCP/ElevenLabs backend and keep our customer UI.
+  Reuse both implementations; do not restart product planning or rebuild cloud/voice.
+- Target layout: backend/deployment files at root, existing Next.js app under `web/`.
+- Preserve both Git histories and dirty work; perform integration in an isolated
+  branch/check-out. Inspect the fetched code locally before any network retry.
+- First milestone: one backend customer can log in, see their recommendation,
+  respond, and use the existing ElevenLabs audio/voice integration in our UI.
+- Final scope retains both codebases' useful features and implements the missing
+  PM requirements. Bring our attention ranking/forecast into the connected engine;
+  do not mistake the backend's existing weekly cap for the full PM approach.
+- Use the same authenticated customer and nudge in UI and voice. Keep the browser
+  simulation explicitly separate; the backend has no matching scam preflight yet.
+- Verify the existing deployment URL/region before changing infrastructure.
+- This Codex pass updates context only. Merge is Claude's current implementation priority;
+  pushing and deployment remain separate from local integration.
 
-KBC wants a vision and a working proof of concept for scalable personalization:
-understand customers' situations, behavior, and intent; respond at the right
-moment; support them across products and channels. The brief asks how this could
-serve more than 2.3 million customers. Demonstrate one convincing customer
-journey and explain how the approach generalizes; do not claim production scale
-without evidence.
+## Product and current implementation
 
-## Working approach
+- The product is **unnamed**. Choose branding at the end.
+- Lead with the customer experience: understand a situation, explain timely help,
+  let the customer act or decline, and show the outcome. Scale supports the story.
+- PM approach: priority = urgency × confidence × customer relevance - interruption
+  cost; one selected message, a weekly attention budget, protective exceptions,
+  and a 30-day balance forecast. Do not infer approval for extra features.
+- A Next.js/React/TypeScript/Tailwind app already exists at the workspace root.
+  Five heroes, detectors/ranker, customer and bank views, simulated actions,
+  privacy, activity, and savings goals are implemented. Reuse them.
+- Local HEAD at handoff: `7580d75`, which adds the scam transfer draft and Send flow.
+- Teammate's latest Python/GCP/ElevenLabs code is fetched as `origin/main` at `ed5f5cd`.
+  It has NOT been merged. Deployment health and active region are unverified.
+- Include the new Pub/Sub service-agent fix (`4d525ef`) and Gemini API-key support
+  (`ed5f5cd`); do not integrate only the old `300ad35` snapshot. Fetch again when
+  the team reports a newer push. Lab project/region details are in the handoff.
+- Efe confirmed Vertex AI is blocked in the lab: use backend `GEMINI_API_KEY`
+  mode from the latest push. Keep GCP infrastructure and ElevenLabs; this is a
+  change to the Gemini client, not a replacement of the backend.
 
-- Read the relevant files and inspect the current Git state before editing.
-- Keep changes focused on the assigned task. Preserve teammates' changes.
-- The user's PM friend is preparing answers to the planning questions. Use
-  their answers when available; do not invent them or present agent proposals
-  as team decisions. Avoid repeating questions already answered in the context.
-- Prefer the smallest end-to-end demo that proves the idea. Avoid infrastructure
-  or agent orchestration that does not help the demo.
-- Follow the iterative build plan in `docs/PROJECT_CONTEXT.md`: one working
-  journey first, then short build/check/feedback cycles. Keep scenario data,
-  decision logic, and screens separate so PM feedback can change the demo cheaply.
-- Use synthetic customer data. Never commit credentials or confidential data.
-- Clearly distinguish implemented behavior, mocked integrations, and future work.
-- Once a stack is chosen, record actual setup, run, and verification commands in
-  `README.md`. Do not invent commands or claim checks passed without running them.
-- Check the behavior affected by your changes; report results and limitations.
+## Git and collaboration
 
-## Working with multiple coding agents
+- Inspect Git status first; preserve tracked and untracked work.
+- Local main and origin/main have independent histories. Do not blindly pull,
+  rebase, force-push, reset, clean, or overwrite one tree with the other.
+- Read remote files locally: `git show origin/main:README.md` and
+  `git show origin/main:kate/api/main.py`. Fetch already succeeded over SSH;
+  do not repeat failing GitHub API requests just to inspect this snapshot.
+- Claude is lead/integrator, UI/engine/dependency owner. Codex handles assigned
+  security/docs/review tasks. One writer per file; coordinate shared interfaces.
+- Avoid competing installs/builds. Stage explicit owned paths, never all changes.
+- Do not let historical restart-only instructions obscure the current merge focus.
+  Preserve the user's instruction not to push without explicit approval.
 
-Codex and Claude Code may work on this repository. These are shared instructions.
+## Verification and delivery
 
-- Each task needs an outcome, an owner, permitted files, and a completion check.
-- Start with one implementation owner and one reviewer. A reviewer should report
-  findings without editing unless assigned a fix.
-- Before parallel implementation, agree on shared interfaces and file ownership.
-  Do not edit the same files concurrently. Use separate branches/worktrees for
-  independent implementations that would otherwise overlap.
-- Assign one owner for shared configuration, dependency manifests, lockfiles, and
-  integration. Do not run competing dependency installations in one checkout.
-- At handoff, summarize changes, checks, unfinished work, and the next task.
-- These files provide context; they do not launch agents or synchronize sessions.
-
-## Requirements from the participant guide
-
-- BuilderBase judging weights: originality 30%, technical ability 30%, fit to
-  the case challenge 30%, and security 10%.
-- Aikido AI Code Audit is required; security contributes 10% of the assessment.
-  Capture the baseline screenshot, fix findings, and capture the final screenshot.
-- Submit through Builderbase: short description, demo video **under 3 minutes**,
-  GitHub repository link, and Aikido before/after screenshots.
-- Keep the GitHub repository public and accessible until judging ends.
-- Include a short README with the project, run instructions, and unfinished work.
-- BuilderBase says hacking has started. Submission deadline: **September 30,
-  2026, 23:00 Europe/Brussels (GMT+2 / 21:00 UTC)**. Recalculate remaining time
-  from the current clock; do not reuse the pasted countdown as a live value.
-- No code changes or submission edits after final submission.
-
-The initial Claude task is in `HANDOFF_TO_CLAUDE.md`; it is a starting assignment,
-not a permanent instruction to repeat planning in every session.
+- Synthetic data only. Never save credentials in code, docs, commits, or logs.
+- Clearly label simulated actions/calls and template wording. Source presence
+  does not establish a working deployed integration, security, or legal compliance.
+- Relevant checks: `npm run typecheck`, `npm run build`,
+  `node --import tsx scripts/heroes.ts`, and
+  `node --import tsx scripts/nightly.ts 10000`. Report actual results.
+- Review `docs/CODE_REVIEW.md`, newest section first. Verify whether later commits
+  supersede a finding before fixing it.
+- Reported pre-event starter provenance must remain visible; organizer permission
+  to reuse it is unresolved. Fresh commit timestamps do not establish eligibility.
+- Deadline: September 30, 2026, **23:00 Europe/Brussels (21:00 UTC)**.
+- Judging: originality 30%, technical ability 30%, fit 30%, security 10%.
+- Required: description, original demo video under 3 minutes, public repo, Aikido
+  before/after screenshots. README needs run instructions and unfinished work.
+- Keep the repo accessible through judging. No edits after final submission.

@@ -4,6 +4,41 @@ Read this alongside `AGENTS.md`. Keep confirmed facts separate from suggestions.
 Update this file when the user or PM provides new decisions; do not overwrite
 their answers with agent assumptions.
 
+## Current priority: merge
+
+Latest clarification: combine our features, Efe's features and the PM requirements
+in one product. The full PM list below was re-supplied and remains the brief.
+`MERGE_REQUIREMENTS.md` maps source coverage and missing work. One connected
+journey is only the first milestone; it does not replace the rest of the product.
+
+Latest user instruction: focus the agent context on merging our existing
+customer UI with the teammate's GCP/ElevenLabs backend. Target backend at root,
+Next.js in `web/`, and one connected customer journey with consistent identity,
+persisted feedback, and voice. Reuse the existing services. Do not restart
+product planning or prioritize unrelated additions before that integration works.
+This context update itself does not merge code or push changes.
+
+## Current repository snapshot
+
+The current implementation and recovery instructions are in
+`../HANDOFF_TO_CLAUDE.md`; ownership and remaining work are in `TASKS.md`.
+Local app HEAD is `7580d75`; the teammate's Python/GCP/ElevenLabs backend is
+refetched at 20:57 Brussels as `origin/main` at `ed5f5cd`. These are independent histories,
+not yet merged. Deployment health and active region remain unverified.
+PM notes have arrived and are preserved below. Earlier intake/planning status
+is historical; do not use it to restart the app or wait for already supplied answers.
+
+The newer teammate push adds Pub/Sub service-agent creation (`4d525ef`) and Gemini
+API-key support when Vertex AI is blocked (`ed5f5cd`). Include these in the merge;
+the older `300ad35` snapshot is superseded. The user supplied lab project
+`qwiklabs-gcp-02-047bbdce976e`, default region `us-east1`, zone `us-east1-d`.
+Actual deployment location remains unverified. Credentials are not recorded here.
+
+Efe's 20:56 message, relayed by the user, confirms Vertex AI is disallowed in this
+lab and the team switched to a Gemini API key. Use the server-side GEMINI_API_KEY
+path in `ed5f5cd`, while retaining GCP hosting/data and ElevenLabs. The keys supplied
+in chat are not copied into documentation; Codex has not tested or configured them.
+
 ## Latest user direction
 
 The product has **no chosen name**. Decide branding at the end; use neutral
@@ -11,13 +46,12 @@ descriptions such as "the prototype". Earlier candidate titles and internal
 module names are not approved product names. Product scope remains subject to
 the PM's input; do not describe a candidate as a settled team decision.
 
-Codex review of commit `86935f2`: TypeScript checks passed, and the headless
-generation/detection/decision script processed 10,000 synthetic customers in
-37 ms on this machine. That is a small synthetic engine measurement, not a
-browser or real-bank benchmark. No browser was available for visual verification.
-Customer actions still include placeholder state changes; findings and concrete
-fix requests are recorded in `docs/TASKS.md`. No application code changed in this
-review. The previous broad roadmap is not evidence of a completed customer flow.
+Codex verified typecheck, five hero selections, and seven targeted regression
+checks through `8aaba50`, with typecheck repeated at `f9d0411`. The final scam
+opening build at `7580d75` was reported green by Claude, not independently
+verified by Codex. Review findings are in `docs/CODE_REVIEW.md`, newest first.
+The app includes simulated customer actions; no browser or deployed integration
+was verified by Codex. Synthetic engine timings are not real-bank benchmarks.
 
 ## Event and deadline
 
@@ -66,20 +100,21 @@ verify materials before final submission, even if time remains on the clock.
 ## Team and decisions
 
 - User: coordinating development with Codex and Claude Code.
-- PM friend: preparing answers to the planning questions. Exact questions and
-  answers have not yet been shared with the agents.
-- CORRECTION (user, 19:15): the product is NOT decided. The PM is working on
-  it. `docs/SPEC.md` (Moments) is one candidate from an earlier chat;
-  `docs/MVP_PROPOSAL.md` is Claude's proposal. `docs/TASKS.md` is a proposed
-  split; only its security tasks (X1-X3) are concept-independent.
+- PM friend: supplied several rounds of notes, preserved below. The current
+  approach uses customer relevance, an attention budget, and forecasting.
+- The earlier 19:15 correction rejected treating a candidate as a settled
+  product. Naming remains undecided. `docs/SPEC.md` and `docs/MVP_PROPOSAL.md`
+  are historical proposals; use the current handoff and task board for work.
 - Claude owns the population generator, moment detectors, policy, and UI.
 - Codex owns security, documentation, and review as detailed in the task board.
 - Challenge: KBC. Existing stack: Next.js, React, TypeScript, Tailwind.
-- Codex's intake work inspected source and updated context; it has not yet run
-  the application or completed the implementation tasks assigned in the board.
+- Codex has reviewed source, run the checks recorded above, fetched the teammate's
+  code, and prepared restart documentation/backups. No merge or deployment performed.
 - Owners for video, description, audit, and final submission: not assigned yet.
 
-## Incoming starter and implementation status
+## Historical intake snapshot
+
+This section records the initial starter, not the current implementation.
 
 Source: user-pasted Claude Web conversation and inspected workspace files.
 
@@ -180,7 +215,10 @@ before every non-protective detector runs; only the protect pillar sees them. Th
 benefit), never spending. The privacy screen lists what was ignored for that customer
 (e.g. Maria's pharmacy, Sofie's baby shop).
 
-### Status vs PM notes (Claude, 20:05)
+### Historical status vs PM notes (Claude, 20:05; superseded)
+
+This status predates the current implementation and backend fetch. Use
+`MERGE_REQUIREMENTS.md` and `TASKS.md` for current feature coverage and work.
 
 Built and running (`lib/moments.ts`, `lib/orchestrator.ts`, UI): scam guard with most
 listed signals, card fraud, overdraft coming, bill increase, duplicate bill, idle money
@@ -314,9 +352,10 @@ user does not need to design an agent orchestration system.
 
 ### Current iteration
 
-- Stage: existing starter and Moments roadmap received; PM answers still pending.
-- Application: starter source at repository root; runtime not verified by Codex.
-- Next outcome: baseline verification and the task board's first implementation
-  steps, refining the demo story when the PM's answers arrive.
-- Open issues: prep-code eligibility and untested baseline. No dependency or
-  runtime failure has yet been established by Codex.
+- Stage: merge/integration is the next build priority; PM input is already recorded.
+- Application: working source for five synthetic customer stories at repository
+  root; teammate's backend available through local `git show origin/main:<path>`.
+- Next outcome: preserve both implementations, combine them in an isolated
+  integration checkout, and connect one customer journey plus existing voice.
+- Open issues: current code-review findings, data/identity contracts between the
+  two apps, deployment verification, submission materials, and prep-code eligibility.
