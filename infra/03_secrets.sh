@@ -39,11 +39,13 @@ elif ! "${GC[@]}" secrets describe "$SECRET_ELEVENLABS" >/dev/null 2>&1; then
   die "Put ELEVENLABS_API_KEY in .env (it is stored in Secret Manager, never in git)"
 fi
 
-# Optional: Gemini API key for projects where Vertex AI is blocked. Only kate-engine may read it.
+# Gemini composes the selected event or interactive customer moment, server-side only.
 if [[ -n "${GEMINI_API_KEY:-}" ]]; then
   set_secret "$SECRET_GEMINI" "$GEMINI_API_KEY"
   "${GC[@]}" secrets add-iam-policy-binding "$SECRET_GEMINI" \
     --member="serviceAccount:$SA_ENGINE" --role=roles/secretmanager.secretAccessor >/dev/null
+  "${GC[@]}" secrets add-iam-policy-binding "$SECRET_GEMINI" \
+    --member="serviceAccount:$SA_API" --role=roles/secretmanager.secretAccessor >/dev/null
 fi
 
 # kate-api reads these four secrets and nothing else.
@@ -51,4 +53,4 @@ for secret in "$SECRET_SESSION_KEY" "$SECRET_TOOL" "$SECRET_DEMO_CODE" "$SECRET_
   "${GC[@]}" secrets add-iam-policy-binding "$secret" \
     --member="serviceAccount:$SA_API" --role=roles/secretmanager.secretAccessor >/dev/null
 done
-log "Secrets ready. Demo access code: $(secret_value "$SECRET_DEMO_CODE")"
+log "Secrets ready. Retrieve the demo access code privately from Secret Manager."

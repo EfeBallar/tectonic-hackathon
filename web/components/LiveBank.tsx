@@ -22,6 +22,7 @@ const LABEL: Record<string, string> = {
   travelling_abroad: "Abroad",
   vehicle_purchase: "New vehicle",
 };
+const TOPICS: [string, string][] = [["cashflow", "Money running low"], ["housing", "Moving house"], ["income", "Salary changes"], ["family", "Family"], ["travel", "Travel"], ["mobility", "Car and transport"]];
 const VERDICT: Record<string, string> = {
   selected: "won the slot",
   outranked: "lost the slot to a higher priority",
@@ -67,7 +68,7 @@ export function LiveBank() {
   const player = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    kate.personas().then((p) => { setPersonas(p); setPick(p[0]?.customer_id ?? ""); }).catch((e) => setError(message(e)));
+    kate.personas().then((all) => { const p = all.filter(x => x.customer_id.startsWith("D")); setPersonas(p); setPick(p[0]?.customer_id ?? ""); }).catch((e) => setError(message(e)));
     return () => { stopAudio(); void conv.current?.endSession(); };
   }, []);
 
@@ -86,7 +87,8 @@ export function LiveBank() {
   }
 
   async function refresh(token: string) {
-    const [n, t, a] = await Promise.all([kate.nudges(token), kate.transactions(token), kate.attention(token)]);
+    // An older backend may not expose the newer budget view yet.
+    const [n, t, a] = await Promise.all([kate.nudges(token), kate.transactions(token), kate.attention(token).catch(() => null)]);
     setNudges(n);
     setTxns(t);
     setAtt(a);
@@ -142,10 +144,17 @@ export function LiveBank() {
     await refresh(session.token);
   });
 
+  const setTopic = (topic: string, muted: boolean) => run(muted ? "Turning that off…" : "Turning that back on…", async () => {
+    if (!session) return;
+    const profile = await kate.setTopic(session.token, topic, muted);
+    setSession({ ...session, profile });
+  });
+
   const reset = () => run("Resetting this persona…", async () => {
     if (!session) return;
     await endVoice();
     await kate.reset(session.token);
+    setSession({ ...session, profile: await kate.me(session.token) });
     await refresh(session.token);
   });
 
@@ -229,6 +238,20 @@ export function LiveBank() {
                 </li>
               ))}
             </ul>
+            <h2 className="pt-2 text-[15px] font-bold">{first}&apos;s controls</h2>
+            <ul className="grid grid-cols-2 gap-1.5">
+              {TOPICS.map(([topic, label]) => {
+                const off = session.profile.muted_topics?.includes(topic);
+                return (
+                  <li key={topic}>
+                    <button role="switch" aria-checked={!off} disabled={!!busy} onClick={() => void setTopic(topic, !off)} className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left text-[12px] font-semibold disabled:opacity-50 ${off ? "border-line bg-surface-2 text-ink-3" : "border-line bg-white"}`}>
+                      <span>{label}</span>
+                      <span className={`ml-2 h-2 w-2 shrink-0 rounded-full ${off ? "bg-ink-3" : "bg-good"}`} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
             <button disabled={!!busy} onClick={() => void reset()} className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2 hover:text-ink disabled:opacity-50">
               <IconRefresh className="h-4 w-4" /> Reset {first}&apos;s demo
             </button>
@@ -285,9 +308,12 @@ export function LiveBank() {
                       <p>{current.reason}</p>
                       {current.attention && (
                         <p className="mt-2 text-[12px] text-ink-3">
-                          {current.attention.protective ? "Protection is never rationed: this did not use your weekly budget." : `This used 1 of your ${current.attention.budget} interruptions this week.`} You can turn off “{current.topic}” messages below.
+                          {current.attention.protective ? "Protection is never rationed: this did not use your weekly budget." : `This used 1 of your ${current.attention.budget} interruptions this week.`}
                         </p>
                       )}
+                      <button disabled={!!busy} onClick={() => void setTopic(current.topic, true)} className="mt-2 text-[12px] font-semibold text-accent underline underline-offset-4 disabled:opacity-50">
+                        Stop messages about {TOPICS.find(([t]) => t === current.topic)?.[1].toLowerCase() ?? current.topic}
+                      </button>
                     </div>
                   )}
                   {current.suggested_actions?.length > 0 && (

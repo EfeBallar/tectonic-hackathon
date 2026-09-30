@@ -54,11 +54,26 @@ class FakeStore:
     def put_customer(self, profile):
         self.customers[profile["customer_id"]] = copy.deepcopy(profile)
 
+    def ensure_customer(self, profile):
+        self.customers.setdefault(profile["customer_id"], copy.deepcopy(profile))
+
+    def mutate_customer(self, customer_id, transform):
+        profile = transform(copy.deepcopy(self.customers[customer_id]))
+        self.customers[customer_id] = copy.deepcopy(profile)
+        return copy.deepcopy(profile)
+
     def remember(self, customer_id, note, topic, mute_topic):
         customer = self.customers[customer_id]
         customer.setdefault("memory", []).append({"note": note, "topic": topic or "", "created_at": datetime.now(UTC)})
         if mute_topic and topic and topic not in customer.setdefault("muted_topics", []):
             customer["muted_topics"].append(topic)
+
+    def set_topic_muted(self, customer_id, topic, muted):
+        muted_topics = self.customers[customer_id].setdefault("muted_topics", [])
+        if muted and topic not in muted_topics:
+            muted_topics.append(topic)
+        if not muted and topic in muted_topics:
+            muted_topics.remove(topic)
 
     def set_relevance(self, customer_id, topic, value):
         self.customers[customer_id].setdefault("relevance", {})[topic] = value

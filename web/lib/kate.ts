@@ -94,7 +94,7 @@ async function call(path: string, token: string | null, init: RequestInit = {}):
   if (init.body) headers.set("Content-Type", "application/json");
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, { ...init, headers, cache: "no-store" });
+    res = await fetch(`${BASE}${path}`, { ...init, headers, cache: "no-store", signal: init.signal ?? AbortSignal.timeout(20000) });
   } catch {
     throw new KateError(0, "Cannot reach kate-api. Is KATE_API_URL set and the service up?");
   }
@@ -126,6 +126,8 @@ export const kate = {
   audioUrl: async (t: string, id: string) => URL.createObjectURL(await (await call(`/api/nudges/${encodeURIComponent(id)}/audio`, t)).blob()),
   voiceSession: (t: string, nudge_id?: string) => json<VoiceSession>(call("/api/voice/session", t, post(nudge_id ? { nudge_id } : {}))),
   event: (t: string, event_id: string) => json<{ event_id: string }>(call("/api/demo/events", t, post({ event_id }))),
+  /** Customer control: turn a kind of moment off or on. Engine and voice agent read the same list. */
+  setTopic: (t: string, topic: string, muted: boolean) => json<Profile>(call("/api/preferences/topics", t, post({ topic, muted }))),
   reset: (t: string) => json<{ deleted_nudges: number }>(call("/api/demo/reset", t, post({}))),
 };
 
@@ -140,7 +142,8 @@ export async function startVoice(
   on: { status: (s: string) => void; message: (who: "kate" | "you", text: string) => void },
 ): Promise<Conversation> {
   const { Conversation } = await import(/* webpackIgnore: true */ ELEVENLABS_SDK);
-  await navigator.mediaDevices.getUserMedia({ audio: true });
+  const permission = await navigator.mediaDevices.getUserMedia({ audio: true });
+  permission.getTracks().forEach(track => track.stop());
   const options = {
     dynamicVariables: session.dynamic_variables,
     overrides: { agent: { language: session.language } },

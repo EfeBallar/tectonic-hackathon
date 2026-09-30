@@ -6,6 +6,8 @@ import type { Patch } from "./pass";
 import type { Customer } from "./population";
 
 export type DemoAction =
+  | { kind: "present"; momentId: MomentId }
+  | { kind: "cancel_payment"; momentId: MomentId; paymentId: string }
   | { kind: "transfer_from_savings"; momentId: MomentId; amount: number }
   | { kind: "refund"; momentId: MomentId; amount: number; payee: string }
   | { kind: "scam"; outcome: "cancelled" | "delayed" | "handoff" }
@@ -20,15 +22,31 @@ export function reduce(c: Customer, prev: Patch | undefined, a: DemoAction): Pat
   const p: Patch = { ...prev };
   const resolve = (id: string) => { p.resolved = [...(p.resolved ?? []), id]; };
   const log = (t: string) => { p.log = [t, ...(p.log ?? [])].slice(0, 20); };
-  const spendSlot = (id: MomentId) => { if (MOMENT_BY_ID[id]?.pillar !== "protect") p.used = (p.used ?? 0) + 1; };
+  const spendSlot = (id: MomentId) => {
+    const shown = p.presented ?? c.presented ?? [];
+    if (shown.includes(id)) return;
+    p.presented = [...shown, id];
+    if (MOMENT_BY_ID[id]?.pillar !== "protect") p.used = (p.used ?? 0) + 1;
+  };
   // learned relevance: acting on a kind of moment raises it, dismissing it halves it
   const learn = (id: string, acted: boolean) => {
     const cur = c.relevance[id] ?? 1;
     p.relevance = { ...p.relevance, [id]: Math.max(0.1, Math.min(1.5, cur * (acted ? 1.15 : 0.5))) };
   };
-  if ("momentId" in a) learn(a.momentId, a.kind !== "dismiss");
+  if ("momentId" in a && a.kind !== "present") learn(a.momentId, a.kind !== "dismiss");
 
   switch (a.kind) {
+    case "present":
+      spendSlot(a.momentId);
+      return p;
+    case "cancel_payment": {
+      const due = c.scheduledPayments?.find(x => x.id === a.paymentId && !x.cancelled);
+      if (!due) return p;
+      p.scheduledPayments = c.scheduledPayments!.map(x => x.id === a.paymentId ? { ...x, cancelled: true } : x);
+      resolve(a.momentId); spendSlot(a.momentId);
+      log(`Cancelled the scheduled ${eur(due.amount)} payment to ${due.label} in this synthetic account.`);
+      return p;
+    }
     case "transfer_from_savings": {
       const amt = Math.min(money(a.amount), c.savingsBalance); // never more than they have
       if (amt <= 0) return p;
@@ -51,10 +69,11 @@ export function reduce(c: Customer, prev: Patch | undefined, a: DemoAction): Pat
       return p;
     }
     case "goal": {
-      const fromIdle = Math.min(money(a.fromIdle), c.savingsBalance);
       const target = Math.max(1, money(a.target));
-      p.goal = { label: a.label, target, monthly: money(a.monthly), saved: Math.min(target, fromIdle), shape: a.shape };
-      if (fromIdle > 0) p.balances = { checking: c.checking, savings: c.savingsBalance - fromIdle };
+      const available = c.savingsBalance + (c.goal?.saved ?? 0);
+      const fromIdle = Math.min(money(a.fromIdle), available, target);
+      p.goal = { label: a.label, target, monthly: money(a.monthly), saved: fromIdle, shape: a.shape };
+      p.balances = { checking: c.checking, savings: available - fromIdle };
       resolve(a.momentId); spendSlot(a.momentId);
       log(`Goal “${a.label}” started with ${eur(fromIdle)}. ${eur(a.monthly)} goes in every payday.`);
       return p;
@@ -65,6 +84,7 @@ export function reduce(c: Customer, prev: Patch | undefined, a: DemoAction): Pat
       return p;
     case "dismiss":
       resolve(a.momentId);
+      spendSlot(a.momentId);
       log(`Hid “${MOMENT_BY_ID[a.momentId]?.label}”. You'll see this kind of message less often.`);
       return p;
     default:

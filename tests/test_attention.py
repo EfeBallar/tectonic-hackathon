@@ -77,3 +77,15 @@ def test_feedback_updates_relevance_through_the_api(client, store):
     assert before["used"] == 1 and before["budget"] == attention.WEEKLY_BUDGET
     client.post(f"/api/nudges/{nudge['nudge_id']}/respond", json={"response": "dismissed"}, headers=headers)
     assert client.get("/api/attention", headers=headers).json()["relevance"] == {"housing": 0.75}
+
+
+def test_muting_a_topic_in_the_app_stops_those_moments(client, store):
+    headers = login(client, "D001")
+    profile = client.post("/api/preferences/topics", json={"topic": "housing", "muted": True}, headers=headers).json()
+    assert profile["muted_topics"] == ["housing"]
+    client.post("/api/demo/events", json={"event_id": "moved_house"}, headers=headers)
+    assert client.get("/api/nudges", headers=headers).json() == []
+    assert store.signals[-1]["decision"] == "topic_muted"
+    profile = client.post("/api/preferences/topics", json={"topic": "housing", "muted": False}, headers=headers).json()
+    assert profile["muted_topics"] == []
+    assert client.post("/api/preferences/topics", json={"topic": "gambling", "muted": True}, headers=headers).status_code == 422

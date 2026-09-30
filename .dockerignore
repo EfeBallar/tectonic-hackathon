@@ -11,3 +11,7 @@ sql
 agent
 *.pdf
 *.md
+**/node_modules
+**/.next
+**/.env
+**/.env.*

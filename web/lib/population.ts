@@ -97,6 +97,12 @@ export interface Customer {
   log?: string[];
   /** Ground truth for the demo only (what we injected). Detectors never read this. */
   truth: string[];
+  presented?: string[];
+  scheduledPayments?: { id: string; label: string; amount: number; dueInDays: number; first: boolean; cancelled?: boolean }[];
+  openIncidents?: { id: string; label: string; daysAgo: number }[];
+  transition?: { kind: "retirement" | "university" | "purchase"; label: string; upfront: number; monthly: number; incomeAfter?: number };
+  trustedContact?: { name: string; consented: boolean };
+  importedMoments?: { momentId: string; confidence: number; title: string; message: string; evidence: string; nudgeId: string }[];
 }
 
 const FIRST = [

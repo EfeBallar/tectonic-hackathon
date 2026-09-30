@@ -21,6 +21,9 @@ export interface Patch {
   used?: number; // interruptions consumed in this demo session
   goal?: Customer["goal"];
   log?: string[];
+  presented?: string[];
+  scheduledPayments?: Customer["scheduledPayments"];
+  trustedContact?: Customer["trustedContact"];
 }
 
 export type SampleKey = MomentId | "none" | HoldReason;
@@ -67,6 +70,9 @@ export function applyPatch(c: Customer, p?: Patch): Customer {
     resolved: p.resolved ?? c.resolved,
     goal: p.goal ?? c.goal,
     log: p.log ?? c.log,
+    presented: p.presented ?? c.presented,
+    scheduledPayments: p.scheduledPayments ?? c.scheduledPayments,
+    trustedContact: p.trustedContact ?? c.trustedContact,
   };
 }
 

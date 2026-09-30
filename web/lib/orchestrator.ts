@@ -28,6 +28,11 @@ export const SCORING: Record<MomentId, { urgency: number; cost: number }> = {
   new_dependent: { urgency: 0.45, cost: 0.12 },
   salary_rise: { urgency: 0.35, cost: 0.08 },
   idle_cash: { urgency: 0.3, cost: 0.08 },
+  first_debit: { urgency: 0.65, cost: 0.05 },
+  recent_incident: { urgency: 0.75, cost: 0.03 },
+  life_transition: { urgency: 0.55, cost: 0.08 },
+  travel: { urgency: 0.45, cost: 0.08 },
+  vehicle_purchase: { urgency: 0.5, cost: 0.08 },
 };
 
 export type HoldReason = "low_confidence" | "no_consent" | "muted" | "budget_full" | "not_worth_it" | "lower_priority";
@@ -91,13 +96,13 @@ export function decide(c: Customer, opts: { budget?: number } = {}, all: Detecti
   for (const s of ranked) {
     const m = MOMENT_BY_ID[s.momentId];
     const p = s.priority;
-    if (s.confidence < POLICY.minConfidence) {
+    if (s.confidence < (m.realtime && s.bypass ? 0.35 : POLICY.minConfidence)) {
       held.push({ momentId: s.momentId, reason: "low_confidence", priority: p, text: `Confidence ${pct(s.confidence)} is below ${pct(POLICY.minConfidence)}: not sure enough, so we stay quiet` });
     } else if (!s.bypass && c.consent.muted?.includes(s.momentId)) {
       held.push({ momentId: s.momentId, reason: "muted", priority: p, text: "You turned this kind of message off" });
     } else if (m.commercial && !c.consent.personalizedOffers) {
       held.push({ momentId: s.momentId, reason: "no_consent", priority: p, text: "You switched off personalized offers" });
-    } else if (!s.bypass && used >= size) {
+    } else if (!s.bypass && used >= size && !c.presented?.includes(s.momentId)) {
       held.push({ momentId: s.momentId, reason: "budget_full", priority: p, text: `Attention budget used: ${used} of ${size} interruptions this week. It waits.` });
     } else if (!s.bypass && p < POLICY.minPriority) {
       held.push({ momentId: s.momentId, reason: "not_worth_it", priority: p, text: `Priority ${p.toFixed(2)} is too low to be worth interrupting you` });

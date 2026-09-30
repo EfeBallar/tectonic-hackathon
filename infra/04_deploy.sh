@@ -58,10 +58,12 @@ PUBSUB_AGENT="service-$(project_number)@gcp-sa-pubsub.iam.gserviceaccount.com"
 
 # --- kate-api: public edge. Authentication happens in the app (sessions, tool secret). ---
 log "Deploying $API_SERVICE"
+API_SECRETS="SESSION_SIGNING_KEY=$SECRET_SESSION_KEY:latest,TOOL_SHARED_SECRET=$SECRET_TOOL:latest,DEMO_ACCESS_CODE=$SECRET_DEMO_CODE:latest,ELEVENLABS_API_KEY=$SECRET_ELEVENLABS:latest"
+[[ -n "${GEMINI_API_KEY:-}" ]] && API_SECRETS="$API_SECRETS,GEMINI_API_KEY=$SECRET_GEMINI:latest"
 "${GC[@]}" run deploy "$API_SERVICE" --image="$IMAGE" --region="$GCP_REGION" \
   --service-account="$SA_API" \
   --update-env-vars="^;^APP=api;$COMMON_ENV;PUBSUB_TRANSACTIONS_TOPIC=$TOPIC;ELEVENLABS_VOICE_ID=$ELEVENLABS_VOICE_ID;ELEVENLABS_TTS_MODEL=$ELEVENLABS_TTS_MODEL;CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}" \
-  --update-secrets="SESSION_SIGNING_KEY=$SECRET_SESSION_KEY:latest,TOOL_SHARED_SECRET=$SECRET_TOOL:latest,DEMO_ACCESS_CODE=$SECRET_DEMO_CODE:latest,ELEVENLABS_API_KEY=$SECRET_ELEVENLABS:latest" \
+  --update-secrets="$API_SECRETS" \
   --cpu=1 --memory=512Mi --concurrency=40 --min-instances="$MIN_INSTANCES" --max-instances=10 --timeout=300
 API_URL="$(service_url "$API_SERVICE")"
 

@@ -6,6 +6,7 @@ const KATE_API_URL = (process.env.KATE_API_URL || "").replace(/\/$/, "");
 
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   async rewrites() {
     return KATE_API_URL ? [{ source: "/kate/:path*", destination: `${KATE_API_URL}/:path*` }] : [];
   },

@@ -18,7 +18,8 @@ def trigger(client, headers, event_id):
 
 
 def test_personas_and_login(client):
-    assert len(client.get("/api/demo/personas").json()) == 4
+    ids = {p["customer_id"] for p in client.get("/api/demo/personas").json()}
+    assert {"D001", "D002", "D003", "D004", "H001", "H002", "H003", "H004", "H005"} <= ids
     assert client.post("/api/auth/demo-login", json={"access_code": "wrong", "customer_id": "D001"}).status_code == 401
     assert client.post("/api/auth/demo-login", json={"access_code": ACCESS_CODE, "customer_id": "P00000001"}).status_code == 404
     me = client.get("/api/me", headers=login(client))

@@ -10,3 +10,7 @@ tests/
 sql/
 agent/
 *.pdf
+web/node_modules/
+web/.next/
+web/.env
+web/.env.*

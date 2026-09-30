@@ -54,6 +54,26 @@ class Store:
     def put_customer(self, profile: dict) -> None:
         self._customer(profile["customer_id"]).set(profile)
 
+    def mutate_customer(self, customer_id: str, transform) -> dict:
+        from google.cloud import firestore
+        ref = self._customer(customer_id)
+        @firestore.transactional
+        def update(transaction):
+            snapshot = ref.get(transaction=transaction)
+            if not snapshot.exists:
+                raise ValueError("customer not found")
+            profile = transform(snapshot.to_dict())
+            transaction.set(ref, profile)
+            return profile
+        return update(gcp.firestore_client().transaction())
+
+    def ensure_customer(self, profile: dict) -> None:
+        from google.api_core.exceptions import AlreadyExists
+        try:
+            self._customer(profile["customer_id"]).create(profile)
+        except AlreadyExists:
+            pass
+
     def remember(self, customer_id: str, note: str, topic: str | None, mute_topic: bool) -> None:
         from google.cloud import firestore
 
@@ -65,6 +85,12 @@ class Store:
         if mute_topic and topic:
             update["muted_topics"] = firestore.ArrayUnion([topic])
         self._customer(customer_id).update(update)
+
+    def set_topic_muted(self, customer_id: str, topic: str, muted: bool) -> None:
+        from google.cloud import firestore
+
+        change = firestore.ArrayUnion([topic]) if muted else firestore.ArrayRemove([topic])
+        self._customer(customer_id).update({"muted_topics": change, "updated_at": datetime.now(UTC)})
 
     def set_relevance(self, customer_id: str, topic: str, value: float) -> None:
         """topic comes from the fixed Topic vocabulary, so it is safe as a field path."""

@@ -17,14 +17,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from kate.api import tools
+from kate.api import tools, experience as experience_api
+from kate import experience
 from kate.api.common import profile_or_404, public_nudge, public_profile, respond_to_nudge
 from kate.config import Settings, get_settings
 from kate.deps import get_event_publisher, get_store, get_voice
 from kate.engine import attention
 from kate.events import EventPublisher
 from kate.logs import setup_logging
-from kate.models import Category, Id
+from kate.models import Category, Id, Topic
 from kate.personas import PERSONAS, build_event_transactions
 from kate.security import (
     APP_AUDIENCE,
@@ -102,6 +103,7 @@ async def security_headers(request: Request, call_next):
 
 
 app.include_router(tools.router)
+app.include_router(experience_api.router)
 
 
 @app.get("/health")
@@ -140,7 +142,9 @@ def demo_login(
     body: DemoLogin, request: Request, settings: Settings = Depends(get_settings), store: Store = Depends(get_store)
 ) -> dict:
     _check_access_code(request, body.access_code, settings)
-    if body.customer_id not in PERSONAS:
+    if body.customer_id in experience.HEROES:
+        store.ensure_customer(experience.hero_profile(body.customer_id))
+    elif body.customer_id not in PERSONAS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "unknown demo persona")
     profile = store.get_customer(body.customer_id)
     if profile is None:
@@ -204,6 +208,21 @@ def attention_state(p: Principal = Depends(require_customer), store: Store = Dep
             "relevance": profile.get("relevance") or {}, "min_priority": attention.MIN_PRIORITY,
             "scoring": {k: {"urgency": u, "cost": c, "protective": k in attention.PROTECTIVE}
                         for k, (u, c) in attention.SCORING.items()}}
+
+
+class TopicPreference(BaseModel):
+    topic: Topic
+    muted: bool
+
+
+@app.post("/api/preferences/topics")
+def set_topic_preference(
+    body: TopicPreference, p: Principal = Depends(require_customer), store: Store = Depends(get_store)
+) -> dict:
+    """Customer control: turn a kind of moment off (or back on). The engine and the voice agent read the same list."""
+    profile_or_404(store, p.customer_id)
+    store.set_topic_muted(p.customer_id, body.topic.value, body.muted)
+    return public_profile(profile_or_404(store, p.customer_id))
 
 
 class NudgeResponse(BaseModel):
@@ -301,7 +320,9 @@ def voice_session(
 
 @app.get("/api/demo/personas")
 def personas() -> list[dict]:
-    return [
+    return [{"customer_id": h["customer_id"], "first_name": h["customer"]["name"].split()[0],
+             "age": h["customer"]["age"], "city": h["customer"]["city"], "language": "en",
+             "story": h["story"], "events": [], "hero_id": h["id"]} for h in experience.HEROES.values()] + [
         {
             "customer_id": persona.customer_id,
             "first_name": persona.first_name,

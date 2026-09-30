@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { DemoAction } from "@/lib/demoActions";
 import { assessPayment, forecast, idleSurplus, MOMENT_BY_ID, MOMENTS, projectedGap, type MomentId, type SignalGroup } from "@/lib/moments";
 import type { Decision } from "@/lib/orchestrator";
@@ -20,24 +20,29 @@ const Dot = ({ g }: { g: SignalGroup }) => <span className={`mr-1.5 inline-block
 const CHANNEL_TXT = { app: "In-app card", push: "Push notification", kate: "Kate chat", email: "Email", advisor: "Advisor call" } as const;
 
 type Tab = "home" | "privacy";
-const GOAL_MOMENTS: string[] = ["idle_cash", "first_job", "salary_rise"];
+const GOAL_MOMENTS: string[] = ["idle_cash", "first_job", "salary_rise", "life_transition"];
 
 export function MomentPhone({
   customer,
   decision,
   onConsent,
   onAct,
+  voice,
+  onPreflight,
 }: {
   customer: Customer;
   decision: Decision;
   onConsent: (c: Consent) => void;
   onAct: (a: DemoAction) => void;
+  voice?: ReactNode;
+  onPreflight?: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("home");
   const [why, setWhy] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [confirm, setConfirm] = useState<DemoAction | null>(null);
   const [stage, setStage] = useState<"draft" | "checking" | "guard">("draft");
+  const [checkError, setCheckError] = useState("");
   const c = customer;
   const chosen = decision.chosen;
   const m = chosen ? MOMENT_BY_ID[chosen.momentId] : null;
@@ -47,6 +52,11 @@ export function MomentPhone({
   const first = c.name.split(" ")[0];
 
   function primary(id: MomentId, cta: string) {
+    if (id === "first_debit") {
+      const payment = c.scheduledPayments?.find(p => p.first && !p.cancelled && p.dueInDays <= 7);
+      if (payment) onAct({ kind: "cancel_payment", momentId: id, paymentId: payment.id });
+      return;
+    }
     if (GOAL_MOMENTS.includes(id)) return setGoalOpen(true);
     if (id === "cash_crunch") {
       const gap = projectedGap(c);
@@ -122,6 +132,7 @@ export function MomentPhone({
                     </div>
                   )}
                   <button onClick={() => setWhy(true)} className="mt-2 w-full text-center text-[12px] font-semibold text-accent">Why am I seeing this?</button>
+                  {voice}
                 </div>
               ) : !scamLive ? (
                 <div className="rounded-xl border-l-4 border-calm bg-surface p-4 shadow-[0_8px_24px_-12px_rgba(10,42,74,0.35)]">
@@ -172,11 +183,17 @@ export function MomentPhone({
 
         {/* live scam guard: the customer is making the transfer, the guard steps in on "Send" */}
         {scamLive && c.session?.attempt && guard && stage !== "guard" && (
-          <TransferDraft customer={c} checking={stage === "checking"} onSend={() => { setStage("checking"); setTimeout(() => setStage("guard"), 900); }} />
+          <TransferDraft customer={c} checking={stage === "checking"} onSend={async () => {
+            setStage("checking"); setCheckError("");
+            try { if (onPreflight) await onPreflight(); else await new Promise(r => setTimeout(r, 450)); setStage("guard"); }
+            catch { setStage("draft"); setCheckError("We couldn't check this payment. Nothing was sent. Please try again."); }
+          }} />
         )}
         {scamLive && c.session?.attempt && guard && stage === "guard" && (
-          <ScamGuard customer={c} score={guard.score} factors={guard.factors} onWhy={() => setWhy(true)} onOutcome={(outcome) => onAct({ kind: "scam", outcome })} />
+          <ScamGuard customer={c} score={guard.score} factors={guard.factors} voice={voice} onWhy={() => setWhy(true)} onOutcome={(outcome) => onAct({ kind: "scam", outcome })} />
         )}
+
+        {checkError && <p role="alert" className="absolute bottom-16 left-4 right-4 z-30 rounded-lg bg-bad-soft px-4 py-2 text-[13px] text-bad">{checkError}</p>}
 
         {goalOpen && (
           <SavingsGoalSheet
@@ -238,7 +255,7 @@ function Field({ label, value, sub, note, big }: { label: string; value: string;
   );
 }
 
-function ScamGuard({ customer: c, score, factors, onWhy, onOutcome }: { customer: Customer; score: number; factors: { text: string; group: SignalGroup }[]; onWhy: () => void; onOutcome: (o: "cancelled" | "delayed" | "handoff") => void }) {
+function ScamGuard({ customer: c, score, factors, onWhy, onOutcome, voice }: { customer: Customer; score: number; factors: { text: string; group: SignalGroup }[]; onWhy: () => void; onOutcome: (o: "cancelled" | "delayed" | "handoff") => void; voice?: ReactNode }) {
   const [state, setState] = useState<"paused" | "handoff">("paused");
   const a = c.session!.attempt!;
   const blocked = a.payee.flag === "blacklisted";
@@ -251,6 +268,7 @@ function ScamGuard({ customer: c, score, factors, onWhy, onOutcome }: { customer
         </div>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {voice}
         <div className="rounded-xl border border-line p-3 text-[13px]">
           <div className="text-ink-3">You were about to send</div>
           <div className="tabular text-2xl font-bold">{eur(a.amount)}</div>

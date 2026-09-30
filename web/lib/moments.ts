@@ -34,7 +34,8 @@ export type MomentId =
   | "moving"
   | "new_dependent"
   | "salary_rise"
-  | "idle_cash";
+  | "idle_cash"
+  | "first_debit" | "recent_incident" | "life_transition" | "travel" | "vehicle_purchase";
 
 export interface MomentDef {
   id: MomentId;
@@ -397,6 +398,43 @@ export const MOMENTS: MomentDef[] = [
   },
 ];
 
+MOMENTS.push(
+  {
+    id: "first_debit", label: "A new recurring payment", pillar: "support", productLine: "banking", commercial: false, realtime: false, bigMoment: false,
+    detect: c => {
+      const p = c.scheduledPayments?.find(x => x.first && !x.cancelled && x.dueInDays <= 7);
+      return p ? { momentId: "first_debit", confidence: 0.95, evidence: [{ group: "money", text: `${p.label}: first ${eur(p.amount)} payment due in ${p.dueInDays} days` }] } : null;
+    },
+    action: c => {
+      const p = c.scheduledPayments?.find(x => x.first && !x.cancelled && x.dueInDays <= 7);
+      return { title: `${p?.label ?? "A new payment"} starts soon`, message: `The first ${eur(p?.amount ?? 0)} payment is scheduled in ${p?.dueInDays ?? 0} days. Check it now, while there is time to cancel.`, cta: "Cancel this payment" };
+    },
+  },
+  {
+    id: "recent_incident", label: "Follow up on your request", pillar: "support", productLine: "banking", commercial: false, realtime: false, bigMoment: true,
+    detect: c => c.openIncidents?.length ? { momentId: "recent_incident", confidence: 0.95, evidence: [{ group: "context", text: `You opened: ${c.openIncidents[0].label}` }] } : null,
+    action: c => ({ title: "You shouldn't have to explain twice", message: `Your advisor can see your request about ${c.openIncidents?.[0]?.label ?? "your account"} and the relevant account context.`, cta: "Request an advisor" }),
+  },
+  {
+    id: "life_transition", label: "Plan your next chapter", pillar: "guide", productLine: "banking", commercial: false, realtime: false, bigMoment: true,
+    detect: c => c.transition ? { momentId: "life_transition", confidence: 0.95, evidence: [{ group: "life", text: `You told us: ${c.transition.label}` }, { group: "money", text: `${eur(c.transition.upfront)} upfront and ${eur(c.transition.monthly)} per month` }] } : null,
+    action: c => {
+      const t = c.transition!;
+      const income = t.incomeAfter ?? c.salaryNow;
+      const left = income - monthlyExpenses(c) - t.monthly;
+      return { title: `Make room for ${t.label}`, message: `${eur(t.upfront)} upfront, then ${eur(t.monthly)} a month. With income of ${eur(income)}, your projected monthly remainder is ${eur(left)}. We can build a plan around that.`, cta: "Make a savings plan" };
+    },
+  },
+  ...([ ["travel", "A trip abroad"], ["vehicle_purchase", "Your next car"] ] as const).map(([id, label]): MomentDef => ({
+    id, label, pillar: "guide", productLine: "insurance", commercial: false, realtime: false, bigMoment: false,
+    detect: () => null,
+    action: c => {
+      const n = c.importedMoments?.find(x => x.momentId === id);
+      return { title: n?.title ?? label, message: n?.message ?? "Review what this means for your plans.", cta: "Review with Kate" };
+    },
+  })),
+);
+
 export const MOMENT_BY_ID = Object.fromEntries(MOMENTS.map((m) => [m.id, m])) as Record<MomentId, MomentDef>;
 
 function findDuplicate(c: Customer) {
@@ -432,6 +470,7 @@ export function forecast(c: Customer): number[] {
     bal -= c.dailySpend;
     if (d === billDay || d === billDay + 30) bal -= c.upcomingOutflows;
     if (d === c.daysToPayday || d === c.daysToPayday + 30) bal += c.salaryNow;
+    for (const p of c.scheduledPayments ?? []) if (!p.cancelled && d === p.dueInDays) bal -= p.amount;
     out.push(bal);
   }
   return out;
@@ -467,6 +506,10 @@ export function detectAll(c: Customer): Detection[] {
   for (const m of MOMENTS) {
     const d = m.detect(m.pillar === "protect" ? c : view);
     if (d) out.push(d);
+  }
+  for (const n of c.importedMoments ?? []) {
+    if (MOMENT_BY_ID[n.momentId as MomentId] && !out.some(x => x.momentId === n.momentId))
+      out.push({ momentId: n.momentId as MomentId, confidence: n.confidence, evidence: [{ group: "money", text: n.evidence }] });
   }
   return out;
 }
