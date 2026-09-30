@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ControlRoom } from "@/components/ControlRoom";
 import { MomentPhone } from "@/components/MomentPhone";
 import { AttentionRace } from "@/components/AttentionRace";
+import { LiveBank } from "@/components/LiveBank";
 import { MOMENT_BY_ID } from "@/lib/moments";
 import { decide, POLICY } from "@/lib/orchestrator";
 import { accumulate, applyPatch, type Consent, type Patch, type PassStats } from "@/lib/pass";
@@ -17,7 +18,7 @@ export default function Page() {
   const [overrides, setOverrides] = useState<Map<number, Patch>>(() => new Map());
   const [budget, setBudget] = useState(POLICY.weeklyBudget);
   const [selectedId, setSelectedId] = useState<number>(HERO);
-  const [view, setView] = useState<"customer" | "kbc">("customer");
+  const [view, setView] = useState<"customer" | "live" | "kbc">("customer");
   const openCustomer = (id: number) => { setSelectedId(id); setView("customer"); };
 
   const customer = useMemo(() => applyPatch(getCustomer(selectedId), overrides.get(selectedId)), [selectedId, overrides]);
@@ -50,7 +51,7 @@ export default function Page() {
       <nav className={`sticky top-0 z-40 flex items-center justify-between gap-4 px-5 py-3 lg:px-10 ${view === "kbc" ? "bg-night text-white" : "bg-page text-ink"}`}>
         <span className="text-[15px] font-bold">KBC personalization prototype</span>
         <div role="tablist" aria-label="Side" className={`flex rounded-lg p-1 ${view === "kbc" ? "bg-white/10" : "bg-white"}`}>
-          {([["customer", "Customer"], ["kbc", "KBC"]] as const).map(([v, label]) => (
+          {([["customer", "Customer"], ["live", "Live (GCP)"], ["kbc", "KBC"]] as const).map(([v, label]) => (
             <button
               key={v}
               role="tab"
@@ -64,7 +65,9 @@ export default function Page() {
         </div>
       </nav>
 
-      {view === "kbc" ? (
+      {view === "live" ? (
+        <LiveBank />
+      ) : view === "kbc" ? (
         <main id="main" className="flex">
           <ControlRoom stats={stats} setStats={setStats} overrides={overrides} budget={budget} setBudget={setBudget} selectedId={selectedId} onSelect={openCustomer} />
         </main>
