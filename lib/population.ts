@@ -82,6 +82,8 @@ export interface Customer {
   cardExpiresInDays: number;
   recent: SignalTx[]; // notable recent transactions (the evidence trail)
   newDomiciliations: { label: string; amount: number; daysAgo: number }[];
+  /** Direct debits whose amount changed vs their usual amount. */
+  changedDomiciliations: { label: string; usual: number; now: number; daysAgo: number }[];
   life: { addressChangedDaysAgo?: number; dependentAddedDaysAgo?: number; newLoanDaysAgo?: number };
   session?: Session;
   /** Ground truth for the demo only (what we injected). Detectors never read this. */
@@ -137,6 +139,9 @@ export const EVENT_RATES = {
   movingWeak: 0.01, // only a furniture spend, no deposit / address (ambiguous)
   newDependent: 0.005,
   subscriptionCreep: 0.03,
+  billIncrease: 0.03, // a domiciliation amount jumped (energy, telecom, insurance)
+  duplicateBill: 0.006, // same amount, same beneficiary, twice within days
+  firstJob: 0.01,
 };
 
 export function generateCustomer(id: number): Customer {
@@ -185,6 +190,7 @@ export function generateCustomer(id: number): Customer {
     cardExpiresInDays: int(rng, 1, 1100),
     recent: [],
     newDomiciliations: [],
+    changedDomiciliations: [],
     life: {},
     truth,
   };
@@ -234,6 +240,28 @@ export function generateCustomer(id: number): Customer {
     for (let i = 0; i < n; i++)
       c.newDomiciliations.push({ label: subs[(id + i) % subs.length], amount: int(rng, 8, 30), daysAgo: int(rng, 1, 30) });
     truth.push("subscription_creep");
+  }
+
+  if (rng() < R.billIncrease) {
+    const [label, usual] = pick(rng, [["Engie energy", 110], ["Proximus", 65], ["Luminus", 95], ["Telenet", 70]] as [string, number][]);
+    c.changedDomiciliations.push({ label, usual, now: r10(usual * (1.3 + rng() * 0.9)), daysAgo: int(rng, 0, 6) });
+    truth.push("bill_increase");
+  }
+  if (rng() < R.duplicateBill) {
+    const [label, amt] = pick(rng, [["Fluvius", 84], ["Stad Leuven, belasting", 145], ["DKV Verzekering", 62]] as [string, number][]);
+    const d = int(rng, 0, 4);
+    c.recent.push({ daysAgo: d, label, amount: -amt, tag: "bill" });
+    c.recent.push({ daysAgo: d + int(rng, 0, 3), label, amount: -amt, tag: "bill" });
+    truth.push("duplicate_bill");
+  }
+  if (s.seg === "first_job" || (s.seg === "student" && rng() < R.firstJob * 10)) {
+    if (rng() < R.firstJob * 8) {
+      c.salaryPrev = s.seg === "student" ? income : r10(income * 0.2);
+      c.salaryNow = r10(1900 + rng() * 600);
+      c.recent.push({ daysAgo: int(rng, 1, 6), label: `First salary · ${pick(rng, ["Colruyt Group", "Barco NV", "UZ Leuven", "Proximus"])}`, amount: c.salaryNow, tag: "first_salary" });
+      c.dailySpend = Math.round(c.dailySpend * 1.6);
+      truth.push("first_job");
+    }
   }
 
   // --- live session (context signals) ---

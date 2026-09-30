@@ -129,6 +129,23 @@ User needs to feel as much confidence in the service as they do when they're
 on a call with an employee.
 ```
 
+### PM notes, round 2 (received 19:45, section 3 "Moments", summarized faithfully)
+
+- **Protecting from scams** (hero): confidence like being on a call with a KBC employee.
+- **Stabilising money / overdraft coming:** predict the account going negative before it
+  does, from domiciliations, spending trends of past months and salary timing; a usual
+  bill higher than usual; a domiciliation amount changed; the same bill paid twice in a
+  short span (same amount, same beneficiary).
+- **Growing money:** idle money -> propose savings plans; set a savings goal; gamify the
+  goal per customer (e.g. older customers: a house/car/object that fills up with % saved).
+- **Transitions:** first job or job change: model the spending trend change and the
+  salary split spent/saved.
+- More coming; PM's working doc is a Google Doc (not readable by agents, paste content).
+
+Mapping to code (`lib/moments.ts`): scam_in_progress + card_fraud (protect),
+cash_crunch = overdraft coming, bill_increase, duplicate_bill, idle_cash, salary_rise,
+first_job. Savings-goal gamification: not built yet (UI backlog).
+
 ### Interpretation (Claude, to confirm with PM)
 
 - Structure matches the case: signals -> recognition -> moments.

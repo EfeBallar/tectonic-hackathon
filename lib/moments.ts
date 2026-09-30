@@ -24,6 +24,9 @@ export type MomentId =
   | "scam_in_progress"
   | "card_fraud"
   | "cash_crunch"
+  | "duplicate_bill"
+  | "bill_increase"
+  | "first_job"
   | "salary_drop"
   | "subscription_creep"
   | "card_expiring"
@@ -166,6 +169,71 @@ export const MOMENTS: MomentDef[] = [
     },
   },
   {
+    id: "duplicate_bill",
+    label: "Bill paid twice",
+    pillar: "protect",
+    productLine: "banking",
+    commercial: false,
+    realtime: false,
+    bigMoment: false,
+    action: (c) => {
+      const d = findDuplicate(c)!;
+      return { title: `${d.label} was paid twice`, message: `Two payments of ${eur(-d.amount)} to ${d.label} within a few days. Want us to ask for one back?`, cta: "Request a refund" };
+    },
+    detect: (c) => {
+      const d = findDuplicate(c);
+      return d ? { momentId: "duplicate_bill", confidence: 0.9, evidence: [{ group: "money", text: `2 × ${eur(-d.amount)} to ${d.label} within 3 days (same amount, same beneficiary)` }] } : null;
+    },
+  },
+  {
+    id: "bill_increase",
+    label: "Bill higher than usual",
+    pillar: "support",
+    productLine: "banking",
+    commercial: false,
+    realtime: false,
+    bigMoment: false,
+    action: (c) => {
+      const b = c.changedDomiciliations[0];
+      return { title: `${b.label} went up to ${eur(b.now)}`, message: `Usually ${eur(b.usual)}. That's ${eur((b.now - b.usual) * 12)} more a year if it stays. Want to check the contract or compare?`, cta: "Look into it" };
+    },
+    detect: (c) => {
+      const b = c.changedDomiciliations.find((x) => x.now > x.usual * 1.2);
+      if (!b) return null;
+      return {
+        momentId: "bill_increase",
+        confidence: clamp(0.6 + Math.min(0.3, (b.now / b.usual - 1) / 3)),
+        evidence: [{ group: "money", text: `Direct debit ${b.label}: ${eur(b.now)}, usually ${eur(b.usual)} (+${Math.round((b.now / b.usual - 1) * 100)}%)` }],
+      };
+    },
+  },
+  {
+    id: "first_job",
+    label: "First job",
+    pillar: "guide",
+    productLine: "investment",
+    commercial: false,
+    realtime: false,
+    bigMoment: false,
+    action: (c) => ({
+      title: "Your first salary. Congrats!",
+      message: `Most people's spending jumps in the first months of a job. Decide now: keep ${eur(Math.round(c.salaryNow * 0.1 / 10) * 10)}/month for yourself, automatically, the day your salary lands.`,
+      cta: "Set up my 10% plan",
+    }),
+    detect: (c) => {
+      const t = c.recent.find((x) => x.tag === "first_salary");
+      if (!t) return null;
+      return {
+        momentId: "first_job",
+        confidence: 0.9,
+        evidence: [
+          { group: "life", text: `First salary received: ${t.label.replace("First salary · ", "")}, ${eur(t.amount)}` },
+          { group: "money", text: `Income went from ${eur(c.salaryPrev)} to ${eur(c.salaryNow)}` },
+        ],
+      };
+    },
+  },
+  {
     id: "salary_drop",
     label: "Income dropped",
     pillar: "support",
@@ -289,7 +357,7 @@ export const MOMENTS: MomentDef[] = [
       return { title: "Nice raise. Want to keep a part of it?", message: `Put ${eur(extra)}/month aside automatically, the day your salary lands. You won't miss it.`, cta: `Start a ${eur(extra)}/month plan` };
     },
     detect: (c) =>
-      c.salaryNow > c.salaryPrev * 1.1
+      c.salaryNow > c.salaryPrev * 1.1 && !c.recent.some((t) => t.tag === "first_salary")
         ? { momentId: "salary_rise", confidence: 0.75, evidence: [{ group: "life", text: `Salary ${eur(c.salaryNow)}, up from ${eur(c.salaryPrev)}` }] }
         : null,
   },
@@ -316,6 +384,14 @@ export const MOMENTS: MomentDef[] = [
 ];
 
 export const MOMENT_BY_ID = Object.fromEntries(MOMENTS.map((m) => [m.id, m])) as Record<MomentId, MomentDef>;
+
+function findDuplicate(c: Customer) {
+  const bills = c.recent.filter((t) => t.tag === "bill");
+  for (let i = 0; i < bills.length; i++)
+    for (let j = i + 1; j < bills.length; j++)
+      if (bills[i].label === bills[j].label && bills[i].amount === bills[j].amount && Math.abs(bills[i].daysAgo - bills[j].daysAgo) <= 3) return bills[i];
+  return null;
+}
 
 export function projectedGap(c: Customer): number {
   const gap = c.upcomingOutflows + c.dailySpend * c.daysToPayday - c.checking;
