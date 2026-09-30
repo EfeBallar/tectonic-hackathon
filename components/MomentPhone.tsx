@@ -37,6 +37,7 @@ export function MomentPhone({
   const [why, setWhy] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [confirm, setConfirm] = useState<DemoAction | null>(null);
+  const [stage, setStage] = useState<"draft" | "checking" | "guard">("draft");
   const c = customer;
   const chosen = decision.chosen;
   const m = chosen ? MOMENT_BY_ID[chosen.momentId] : null;
@@ -169,8 +170,11 @@ export function MomentPhone({
           <Privacy customer={c} decision={decision} onConsent={onConsent} />
         )}
 
-        {/* live scam guard: a transfer is in progress */}
-        {scamLive && c.session?.attempt && guard && (
+        {/* live scam guard: the customer is making the transfer, the guard steps in on "Send" */}
+        {scamLive && c.session?.attempt && guard && stage !== "guard" && (
+          <TransferDraft customer={c} checking={stage === "checking"} onSend={() => { setStage("checking"); setTimeout(() => setStage("guard"), 900); }} />
+        )}
+        {scamLive && c.session?.attempt && guard && stage === "guard" && (
           <ScamGuard customer={c} score={guard.score} factors={guard.factors} onWhy={() => setWhy(true)} onOutcome={(outcome) => onAct({ kind: "scam", outcome })} />
         )}
 
@@ -193,6 +197,43 @@ export function MomentPhone({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function TransferDraft({ customer: c, checking, onSend }: { customer: Customer; checking: boolean; onSend: () => void }) {
+  const a = c.session!.attempt!;
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col bg-surface">
+      <div className="bg-brand px-5 pb-4 pt-3 text-white">
+        <div className="text-[13px] opacity-70">KBC Mobile</div>
+        <div className="text-[20px] font-bold">New transfer</div>
+      </div>
+      <div className="flex-1 space-y-4 p-4 text-[14px]">
+        <Field label="From" value={`Current account, ${eur(c.checking)} available`} />
+        <Field label="To" value={a.payee.name} sub={a.payee.iban} note="New beneficiary" />
+        <Field label="Amount" value={eur(a.amount)} big />
+        <Field label="Message" value={a.note} />
+        <div className="rounded-lg bg-surface-2 p-3 text-[12px] text-ink-2">
+          The caller says: “Move your money to this safe account now, your account is being hacked. Stay on the line.”
+        </div>
+      </div>
+      <div className="p-4">
+        <button onClick={onSend} disabled={checking} className="h-12 w-full rounded-full bg-accent text-[15px] font-semibold text-white disabled:opacity-80">
+          {checking ? "Checking this payment…" : `Send ${eur(a.amount)}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, sub, note, big }: { label: string; value: string; sub?: string; note?: string; big?: boolean }) {
+  return (
+    <div className="border-b border-line pb-2">
+      <div className="text-[12px] text-ink-3">{label}</div>
+      <div className={big ? "tabular text-[26px] font-bold" : "font-semibold"}>{value}</div>
+      {sub && <div className="tabular text-[12px] text-ink-3">{sub}</div>}
+      {note && <div className="mt-0.5 text-[12px] font-semibold text-warn">{note}</div>}
     </div>
   );
 }
