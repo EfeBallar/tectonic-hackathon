@@ -1,0 +1,9 @@
+[project]
+name = "kate"
+version = "0.1.0"
+description = "Kate: proactive, signal-driven customer assistant (Tectonic hackathon, KBC challenge)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

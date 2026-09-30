@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kate · pipeline console</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, sans-serif; color: #1b1b1f; background: #f4f5f7; }
+    body { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: baseline; }
+    h1 { margin: 0; }
+    h2 { font-size: 1rem; margin: 0 0 12px; }
+    .card { background: #fff; border-radius: 12px; padding: 16px; margin: 16px 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    button { border: 0; border-radius: 8px; padding: 8px 12px; background: #00548c; color: #fff; cursor: pointer; margin: 4px 4px 4px 0; }
+    button.secondary { background: #e3e8ef; color: #1b1b1f; }
+    button:disabled { opacity: .5; cursor: default; }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #c8ced6; margin-right: 8px; }
+    .muted { color: #5c6570; font-size: .9rem; }
+    .nudge { border-left: 4px solid #00548c; padding: 8px 12px; margin: 8px 0; background: #f7f9fc; }
+    .nudge.done { border-color: #c8ced6; opacity: .7; }
+    .err { color: #b3261e; }
+    #transcript { max-height: 280px; overflow: auto; padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <header><h1>Kate</h1><span class="muted" id="who">pipeline console</span></header>
+
+  <section class="card" id="login">
+    <h2>Log in as a demo persona</h2>
+    <input id="code" type="password" placeholder="Access code" autocomplete="off">
+    <select id="persona"></select>
+    <button id="loginBtn">Log in</button>
+    <p class="err" id="loginErr"></p>
+  </section>
+
+  <main id="app" hidden>
+    <div class="grid">
+      <section class="card">
+        <h2>1 · Something happens in real life</h2>
+        <p class="muted" id="story"></p>
+        <div id="events"></div>
+        <button class="secondary" id="resetBtn">Reset persona</button>
+        <p class="muted" id="eventStatus"></p>
+      </section>
+      <section class="card">
+        <h2>3 · Talk to Kate</h2>
+        <button id="talkBtn">Start conversation</button>
+        <button class="secondary" id="endBtn" disabled>End</button>
+        <p class="muted" id="voiceStatus">idle</p>
+        <ol id="transcript"></ol>
+      </section>
+    </div>
+    <section class="card">
+      <h2>2 · Kate noticed… <span class="muted">Pub/Sub → engine → Gemini → Firestore (refreshes every 3 s)</span></h2>
+      <div id="nudges"></div>
+    </section>
+  </main>
+
+<script type="module">
+  // Loaded on first use, so the rest of the console keeps working if the CDN is unreachable.
+  const ELEVENLABS_SDK = "https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.26.0/+esm";
+
+  const $ = (id) => document.getElementById(id);
+  let token = null;        // kept in memory only
+  let conversation = null;
+  let personas = [];
+
+  // Only textContent is used for server data: nudge texts are LLM output and must never become HTML.
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  async function api(path, options = {}) {
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(path, { ...options, headers });
+    if (!response.ok) throw new Error(await errorMessage(response));
+    return response;
+  }
+
+  async function errorMessage(response) {
+    const text = await response.text();
+    try {
+      const { detail } = JSON.parse(text);
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) return detail.map((d) => `${d.loc?.at(-1)}: ${d.msg}`).join(", ");
+    } catch { /* not JSON */ }
+    return `${response.status} ${text.slice(0, 200)}`;
+  }
+
+  async function loadPersonas() {
+    personas = await (await api("/api/demo/personas")).json();
+    for (const p of personas) {
+      const option = el("option", `${p.first_name}, ${p.age}, ${p.city} (${p.language})`);
+      option.value = p.customer_id;
+      $("persona").append(option);
+    }
+  }
+
+  $("loginBtn").onclick = async () => {
+    $("loginErr").textContent = "";
+    try {
+      const body = { access_code: $("code").value, customer_id: $("persona").value };
+      const session = await (await api("/api/auth/demo-login", { method: "POST", body: JSON.stringify(body) })).json();
+      token = session.token;
+      const persona = personas.find((p) => p.customer_id === body.customer_id);
+      $("who").textContent = `${session.customer.first_name} · ${session.customer.city} · ${session.customer.language}`;
+      $("story").textContent = persona.story;
+      renderEvents(persona);
+      $("login").hidden = true;
+      $("app").hidden = false;
+      refreshNudges();
+      setInterval(refreshNudges, 3000);
+    } catch (error) {
+      $("loginErr").textContent = error.message;
+    }
+  };
+
+  function renderEvents(persona) {
+    $("events").replaceChildren();
+    for (const event of persona.events) {
+      const button = el("button", event.label);
+      button.title = event.story;
+      button.onclick = async () => {
+        $("eventStatus").textContent = "Publishing to Pub/Sub…";
+        try {
+          const result = await (await api("/api/demo/events", {
+            method: "POST", body: JSON.stringify({ event_id: event.event_id }),
+          })).json();
+          const t = result.transactions[0];
+          $("eventStatus").textContent = `Published: ${t.counterparty} ${t.amount} EUR. Waiting for Kate…`;
+        } catch (error) {
+          $("eventStatus").textContent = error.message;
+        }
+      };
+      $("events").append(button);
+    }
+  }
+
+  $("resetBtn").onclick = async () => {
+    try {
+      const result = await (await api("/api/demo/reset", { method: "POST" })).json();
+      $("eventStatus").textContent = `Reset: ${result.deleted_nudges} message(s) removed.`;
+      refreshNudges();
+    } catch (error) {
+      $("eventStatus").textContent = error.message;
+    }
+  };
+
+  async function refreshNudges() {
+    let nudges;
+    try {
+      nudges = await (await api("/api/nudges")).json();
+    } catch (error) {
+      console.warn(error);
+      return;
+    }
+    const container = $("nudges");
+    container.replaceChildren();
+    if (!nudges.length) container.append(el("p", "No messages yet. Trigger a life event.", "muted"));
+    for (const n of nudges) {
+      const card = el("div", undefined, n.status === "new" ? "nudge" : "nudge done");
+      const meta = [n.signal_type, n.status, ...(n.product_ids || [])].join(" · ");
+      card.append(el("strong", n.title), el("p", n.message), el("p", `Why: ${n.reason}`, "muted"), el("p", meta, "muted"));
+      const actions = [
+        ["▶ Listen", "", (b) => playNudge(n.nudge_id, b)],
+        ["Talk about this", "", () => startConversation(n.nudge_id)],
+        ["Accept", "secondary", () => respond(n.nudge_id, "accepted")],
+        ["Dismiss", "secondary", () => respond(n.nudge_id, "dismissed")],
+      ];
+      for (const [label, className, handler] of actions) {
+        const button = el("button", label, className);
+        button.onclick = () => handler(button);
+        card.append(button);
+      }
+      container.append(card);
+    }
+  }
+
+  async function playNudge(nudgeId, button) {
+    button.disabled = true;
+    try {
+      const blob = await (await api(`/api/nudges/${encodeURIComponent(nudgeId)}/audio`)).blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.onended = () => URL.revokeObjectURL(audio.src);
+      await audio.play();
+    } catch (error) {
+      $("eventStatus").textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function respond(nudgeId, response) {
+    try {
+      await api(`/api/nudges/${encodeURIComponent(nudgeId)}/respond`, { method: "POST", body: JSON.stringify({ response }) });
+      refreshNudges();
+    } catch (error) {
+      $("eventStatus").textContent = error.message;
+    }
+  }
+
+  function logLine(who, text) {
+    const item = el("li", `${who}: ${text}`);
+    $("transcript").append(item);
+    item.scrollIntoView({ block: "nearest" });
+  }
+
+  async function startConversation(nudgeId = null) {
+    if (conversation) await conversation.endSession();
+    $("voiceStatus").textContent = "connecting…";
+    try {
+      const { Conversation } = await import(ELEVENLABS_SDK);
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const session = await (await api("/api/voice/session", {
+        method: "POST", body: JSON.stringify({ nudge_id: nudgeId }),
+      })).json();
+      const options = {
+        dynamicVariables: session.dynamic_variables,
+        overrides: { agent: { language: session.language } },
+        onConnect: () => { $("voiceStatus").textContent = "connected"; $("endBtn").disabled = false; },
+        onDisconnect: () => { $("voiceStatus").textContent = "idle"; $("endBtn").disabled = true; conversation = null; },
+        onModeChange: ({ mode }) => { $("voiceStatus").textContent = mode === "speaking" ? "Kate is speaking" : "listening"; },
+        onMessage: ({ role, message }) => logLine(role === "agent" ? "Kate" : "You", message),
+        onError: (message) => logLine("error", message),
+      };
+      try {
+        conversation = await Conversation.startSession({ ...options, conversationToken: session.conversation_token, connectionType: "webrtc" });
+      } catch (webrtcError) {
+        console.warn("WebRTC failed, falling back to WebSocket", webrtcError);
+        conversation = await Conversation.startSession({ ...options, signedUrl: session.signed_url, connectionType: "websocket" });
+      }
+    } catch (error) {
+      $("voiceStatus").textContent = error.message;
+    }
+  }
+
+  $("talkBtn").onclick = () => startConversation();
+  $("endBtn").onclick = () => conversation?.endSession();
+  loadPersonas().catch((error) => { $("loginErr").textContent = error.message; });
+</script>
+</body>
+</html>
