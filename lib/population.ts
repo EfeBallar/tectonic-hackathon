@@ -66,9 +66,12 @@ export interface Customer {
     travelInsurance: boolean;
     mortgage: boolean;
   };
-  consent: { personalizedOffers: boolean; push: boolean; advisor: boolean };
+  consent: { personalizedOffers: boolean; push: boolean; advisor: boolean; muted?: string[] };
   preferredChannel: Channel;
-  lastContactedDaysAgo: number;
+  /** Attention budget: proactive interruptions already used this week. */
+  interruptionsThisWeek: number;
+  /** Learned per customer from past reactions: <1 = they tend to ignore this kind of moment. */
+  relevance: Record<string, number>;
 
   // --- live state (money / behavior / context / life) ---
   checking: number;
@@ -178,7 +181,8 @@ export function generateCustomer(id: number): Customer {
     },
     consent: { personalizedOffers: rng() < 0.68, push: rng() < 0.75, advisor: rng() < 0.55 },
     preferredChannel: s.seg === "retiree" ? pick(rng, ["advisor", "email", "app"] as Channel[]) : pick(rng, ["app", "app", "push", "kate"] as Channel[]),
-    lastContactedDaysAgo: int(rng, 0, 45),
+    interruptionsThisWeek: weighted(rng, [{ n: 0, w: 0.45 }, { n: 1, w: 0.25 }, { n: 2, w: 0.15 }, { n: 3, w: 0.1 }, { n: 4, w: 0.05 }]).n,
+    relevance: {},
     checking: 0,
     savingsBalance: 0,
     daysToPayday: int(rng, 1, 30),
@@ -194,6 +198,9 @@ export function generateCustomer(id: number): Customer {
     life: {},
     truth,
   };
+  // past reactions: some customers keep ignoring growth nudges, some ignore bill tips
+  if (rng() < 0.3) c.relevance[pick(rng, ["idle_cash", "salary_rise", "first_job"])] = 0.35 + rng() * 0.3;
+  if (rng() < 0.15) c.relevance[pick(rng, ["subscription_creep", "bill_increase", "card_expiring"])] = 0.4 + rng() * 0.3;
   c.appSessionsLast7 = Math.max(0, c.baseline.appSessionsPerWeek + int(rng, -2, 2));
   c.savingsBalance = c.products.savings ? r10(income * (0.5 + rng() * rng() * 12)) : 0;
 

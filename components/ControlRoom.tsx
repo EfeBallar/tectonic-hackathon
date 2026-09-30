@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { MOMENTS, NOT_DETECTED, type MomentId, type Pillar } from "@/lib/moments";
 import { POLICY, type HoldReason } from "@/lib/orchestrator";
-import { emptyStats, runChunk, type Consent, type PassStats, type SampleKey } from "@/lib/pass";
+import { emptyStats, runChunk, type Patch, type PassStats, type SampleKey } from "@/lib/pass";
 import type { Channel } from "@/lib/population";
 
 const SIZES = [
@@ -21,8 +21,10 @@ const PILLAR_CLS: Record<Pillar, string> = {
 const HOLD_LABEL: Record<HoldReason, string> = {
   low_confidence: "Not sure enough",
   no_consent: "Held by consent",
-  contact_budget: "Held by contact budget",
-  lower_priority: "Queued behind a more important moment",
+  muted: "Muted by the customer",
+  budget_full: "Attention budget full",
+  not_worth_it: "Not worth an interruption",
+  lower_priority: "Lost the slot to a more important moment",
 };
 const CHANNEL_LABEL: Record<Channel, string> = { app: "App card", push: "Push", kate: "Kate chat", email: "Email", advisor: "Advisor" };
 const CHANNEL_CLS: Record<Channel, string> = { app: "bg-accent", push: "bg-brand", kate: "bg-[#6c5ce7]", email: "bg-ink-3", advisor: "bg-good" };
@@ -34,12 +36,16 @@ export function ControlRoom({
   stats,
   setStats,
   overrides,
+  budget,
+  setBudget,
   selectedId,
   onSelect,
 }: {
   stats: PassStats | null;
   setStats: (s: PassStats) => void;
-  overrides: Map<number, Consent>;
+  overrides: Map<number, Patch>;
+  budget: number;
+  setBudget: (n: number) => void;
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
@@ -49,7 +55,7 @@ export function ControlRoom({
   const [filter, setFilter] = useState<SampleKey>("scam_in_progress");
   const stop = useRef(false);
 
-  function run() {
+  function run(b = budget) {
     const s = emptyStats();
     const total = size;
     let i = 0;
@@ -57,7 +63,7 @@ export function ControlRoom({
     setRunning(true);
     const step = () => {
       const end = Math.min(total, i + CHUNK);
-      runChunk(s, i, end, overrides);
+      runChunk(s, i, end, overrides, b);
       i = end;
       setProgress(i / total);
       setStats({ ...s });
@@ -95,7 +101,7 @@ export function ControlRoom({
           {running ? (
             <button onClick={() => (stop.current = true)} className="h-10 rounded-full bg-ink-2 px-5 text-sm font-semibold text-white">Stop</button>
           ) : (
-            <button onClick={run} className="h-10 rounded-full bg-accent px-5 text-sm font-semibold text-white shadow hover:brightness-110">
+            <button onClick={() => run()} className="h-10 rounded-full bg-accent px-5 text-sm font-semibold text-white shadow hover:brightness-110">
               ▶ Run nightly pass
             </button>
           )}
@@ -131,13 +137,35 @@ export function ControlRoom({
         </div>
       ) : (
         <>
-          {/* KPIs */}
+          {/* the judge line: detected vs shown. The gap is the attention budget. */}
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-lg">
+              <span><b className="tabular">{fmt(st.scanned)}</b> <span className="text-ink-3">customers</span></span>
+              <span className="text-ink-3">→</span>
+              <span><b className="tabular">{fmt(st.moments)}</b> <span className="text-ink-3">moments detected</span></span>
+              <span className="text-ink-3">→</span>
+              <span className="text-accent"><b className="tabular">{fmt(st.withAction)}</b> <span>shown</span></span>
+              <span className="ml-auto rounded-full bg-good-soft px-3 py-1 text-sm font-semibold text-good">
+                {fmt(st.moments - st.withAction)} interruptions saved
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+              <span className="font-semibold">Attention budget</span>
+              <input
+                type="range" min={1} max={5} value={budget} disabled={running}
+                onChange={(e) => { const b = Number(e.target.value); setBudget(b); if (st) run(b); }}
+                className="w-40 accent-[var(--color-accent)]"
+              />
+              <span className="tabular font-semibold">{budget} / week</span>
+              <span className="text-[12px] text-ink-3">priority = urgency × confidence × relevance − interruption cost · scams bypass the budget</span>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Kpi label="Moments detected" value={fmt(st.detected)} sub={`${pct(st.detected, st.scanned)} of customers`} />
-            <Kpi label="Actions sent" value={fmt(st.withAction)} sub="one per customer, max" tone="accent" />
             <Kpi label="No action needed" value={fmt(st.none)} sub="silence is a feature" tone="good" onClick={() => setFilter("none")} active={filter === "none"} />
-            <Kpi label="Held by consent" value={fmt(st.held.no_consent ?? 0)} sub="offers switched off" onClick={() => setFilter("no_consent")} active={filter === "no_consent"} />
-            <Kpi label="Held by contact budget" value={fmt(st.held.contact_budget ?? 0)} sub={`max 1 per ${POLICY.contactBudgetDays} days`} onClick={() => setFilter("contact_budget")} active={filter === "contact_budget"} />
+            <Kpi label="Budget full, waits" value={fmt(st.held.budget_full ?? 0)} sub="moments queued" onClick={() => setFilter("budget_full")} active={filter === "budget_full"} />
+            <Kpi label="Lost the slot" value={fmt(st.held.lower_priority ?? 0)} sub="a more urgent moment won" onClick={() => setFilter("lower_priority")} active={filter === "lower_priority"} />
+            <Kpi label="Held by consent" value={fmt((st.held.no_consent ?? 0) + (st.held.muted ?? 0))} sub="offers off or muted" onClick={() => setFilter("no_consent")} active={filter === "no_consent"} />
+            <Kpi label="Not sure enough" value={fmt(st.held.low_confidence ?? 0)} sub="ambiguous signals, stay quiet" onClick={() => setFilter("low_confidence")} active={filter === "low_confidence"} />
           </div>
 
           {/* impact */}

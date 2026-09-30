@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { assessPayment, MOMENT_BY_ID, type SignalGroup } from "@/lib/moments";
+import { assessPayment, MOMENT_BY_ID, MOMENTS, type SignalGroup } from "@/lib/moments";
 import type { Decision } from "@/lib/orchestrator";
 import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
@@ -21,10 +21,12 @@ export function MomentPhone({
   customer,
   decision,
   onConsent,
+  onFeedback,
 }: {
   customer: Customer;
   decision: Decision;
   onConsent: (c: Consent) => void;
+  onFeedback: (momentId: string, acted: boolean) => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
   const [why, setWhy] = useState(false);
@@ -58,6 +60,13 @@ export function MomentPhone({
               <div className="mt-3 text-[12px] opacity-80">Current account</div>
               <div className="tabular text-3xl font-bold">{eur(c.checking)}</div>
               <div className="text-[12px] opacity-80">Savings {eur(c.savingsBalance)} · payday in {c.daysToPayday} days</div>
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] opacity-90">
+                <span>KBC interrupted you</span>
+                {Array.from({ length: decision.budget.size }).map((_, i) => (
+                  <span key={i} className={`h-2 w-2 rounded-full ${i < decision.budget.used ? "bg-white" : "bg-white/30"}`} />
+                ))}
+                <span>{Math.min(decision.budget.used, decision.budget.size)} of {decision.budget.size} times this week</span>
+              </div>
             </div>
 
             <div className="-mt-10 space-y-3 px-4">
@@ -80,8 +89,8 @@ export function MomentPhone({
                     <div className="mt-3 rounded-xl bg-good-soft p-2 text-center text-[13px] font-semibold text-good">✓ Done. You can undo this in Activity.</div>
                   ) : (
                     <div className="mt-3 flex gap-2">
-                      <button onClick={() => setDone(m.id)} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
-                      <button onClick={() => setDone(m.id)} className="h-10 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-2">Not now</button>
+                      <button onClick={() => { setDone(m.id); onFeedback(m.id, true); }} className="h-10 flex-1 rounded-full bg-accent text-sm font-semibold text-white">{act.cta}</button>
+                      <button onClick={() => onFeedback(m.id, false)} className="h-10 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-2">Not now</button>
                     </div>
                   )}
                   <button onClick={() => setWhy(true)} className="mt-2 w-full text-center text-[12px] font-semibold text-accent">Why am I seeing this?</button>
@@ -226,6 +235,14 @@ function WhySheet({ customer: c, decision: d, onClose }: { customer: Customer; d
             <Section title="Checks it passed">
               {d.checks.map((x, i) => <li key={i}>✓ {x}</li>)}
             </Section>
+            <Section title="Competing for your attention this week">
+              {d.ranked.map((r) => (
+                <li key={r.momentId} className="flex justify-between gap-2">
+                  <span className={r.momentId === chosen.momentId ? "font-semibold" : "text-ink-2"}>{r.momentId === chosen.momentId ? "▶ " : ""}{MOMENT_BY_ID[r.momentId].label}</span>
+                  <span className="tabular text-ink-3">{r.bypass ? "always" : r.priority.toFixed(2)}</span>
+                </li>
+              ))}
+            </Section>
             <Section title="How it reached you">
               <li>{CHANNEL_TXT[chosen.channel]}: {chosen.reason}</li>
             </Section>
@@ -271,6 +288,22 @@ function Privacy({ customer: c, decision: d, onConsent }: { customer: Customer; 
         <div className="rounded-2xl bg-crit-soft p-3 text-[12px] text-crit">
           🛡 Scam and fraud protection always stays on. It protects your money, it never sells you anything.
         </div>
+      </div>
+
+      <div className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Kinds of messages</div>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {MOMENTS.filter((x) => x.pillar !== "protect").map((x) => {
+          const muted = c.consent.muted?.includes(x.id);
+          return (
+            <button
+              key={x.id}
+              onClick={() => onConsent({ ...c.consent, muted: muted ? (c.consent.muted ?? []).filter((y) => y !== x.id) : [...(c.consent.muted ?? []), x.id] })}
+              className={`rounded-full border px-2.5 py-1 text-[12px] ${muted ? "border-line text-ink-3 line-through" : "border-accent/40 bg-accent-soft text-brand"}`}
+            >
+              {x.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Signals behind today's picture</div>
