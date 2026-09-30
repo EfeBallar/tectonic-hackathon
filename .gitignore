@@ -1,0 +1,12 @@
+# Secrets never go to git (hackathon rule + Aikido): use .env locally, Secret Manager in the cloud
+.env
+.env.*
+!.env.example
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+*.log

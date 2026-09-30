@@ -1,0 +1,9 @@
+# Used by infra/04_deploy.sh: gcloud builds submit --config infra/cloudbuild.yaml --substitutions _IMAGE=...
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "."]
+images:
+  - "${_IMAGE}"
+options:
+  # Required when the build runs as a user-specified service account (kate-build).
+  logging: CLOUD_LOGGING_ONLY

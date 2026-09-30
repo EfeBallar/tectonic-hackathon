@@ -1,0 +1,12 @@
+# Files uploaded to Cloud Build: only what the Dockerfile needs.
+.git
+.gitignore
+.venv/
+.env
+.env.*
+**/__pycache__/
+.pytest_cache/
+tests/
+sql/
+agent/
+*.pdf
