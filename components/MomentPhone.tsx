@@ -6,6 +6,7 @@ import { assessPayment, forecast, idleSurplus, MOMENT_BY_ID, MOMENTS, projectedG
 import type { Decision } from "@/lib/orchestrator";
 import type { Consent } from "@/lib/pass";
 import type { Customer } from "@/lib/population";
+import { masked, SENSITIVE_RULES } from "@/lib/sensitive";
 import { GoalShape, goalsFor, SavingsGoalSheet } from "./SavingsGoal";
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString("nl-BE")}`;
@@ -394,9 +395,25 @@ function Privacy({ customer: c, decision: d, onConsent }: { customer: Customer; 
           <ul className="mt-1 space-y-0.5 text-ink-2">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>
         </div>
       ))}
-      <div className="mt-4 rounded-2xl bg-surface-2 p-3 text-[12px] text-ink-2">
-        <b>Never used:</b> health or pregnancy from pharmacy payments, religion or politics from donations, relationships from shared payments.
-      </div>
+      <HiddenFromEngine customer={c} />
+    </div>
+  );
+}
+
+function HiddenFromEngine({ customer: c }: { customer: Customer }) {
+  const { hidden } = masked(c);
+  const label = (cat: string) => SENSITIVE_RULES.find((r) => r.category === cat)?.label ?? cat;
+  return (
+    <div className="mt-6 rounded-xl bg-surface-2 p-3 text-[13px]">
+      <div className="font-semibold">Ignored on purpose</div>
+      <p className="mt-0.5 text-[12px] text-ink-2">Payments that reveal health, pregnancy, religion, politics, union membership or sexual orientation are never used for suggestions. Only fraud checks can see them.</p>
+      {hidden.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-ink-2">
+          {hidden.map((h, i) => (
+            <li key={i} className="flex justify-between gap-2"><span>{h.tx.label}</span><span className="text-ink-3">{label(h.category)}</span></li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

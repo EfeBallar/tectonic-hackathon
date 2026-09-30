@@ -4,6 +4,21 @@ Read this alongside `AGENTS.md`. Keep confirmed facts separate from suggestions.
 Update this file when the user or PM provides new decisions; do not overwrite
 their answers with agent assumptions.
 
+## Latest user direction
+
+The product has **no chosen name**. Decide branding at the end; use neutral
+descriptions such as "the prototype". Earlier candidate titles and internal
+module names are not approved product names. Product scope remains subject to
+the PM's input; do not describe a candidate as a settled team decision.
+
+Codex review of commit `86935f2`: TypeScript checks passed, and the headless
+generation/detection/decision script processed 10,000 synthetic customers in
+37 ms on this machine. That is a small synthetic engine measurement, not a
+browser or real-bank benchmark. No browser was available for visual verification.
+Customer actions still include placeholder state changes; findings and concrete
+fix requests are recorded in `docs/TASKS.md`. No application code changed in this
+review. The previous broad roadmap is not evidence of a completed customer flow.
+
 ## Event and deadline
 
 Source: BuilderBase dashboard text pasted by the user on September 30, 2026.
@@ -150,6 +165,20 @@ Pitch: new way of thinking ("Kate spends attention like money"), scales like a f
 ranking system, uncrowded UI (one thing at a time).
 
 (Point 4 was not included in the notes received.)
+
+### Privacy rule from the team (received ~20:20): GDPR Art. 9 special-category data
+
+Transactions reveal health (pharmacy, hospital), religion (donations), union
+membership, sexual orientation. Inferring "new dependents" or "a baby" from spending
+is exactly this. Decision: a category blocklist; the engine ignores these merchant
+categories for anything that isn't fraud prevention.
+
+Implemented (`lib/sensitive.ts`, used in `detectAll`): sensitive transactions (health,
+pregnancy/baby, religion, politics, union, sexual orientation, gambling) are removed
+before every non-protective detector runs; only the protect pillar sees them. The
+`new_dependent` moment uses declared/administrative data only (family file, child
+benefit), never spending. The privacy screen lists what was ignored for that customer
+(e.g. Maria's pharmacy, Sofie's baby shop).
 
 ### Status vs PM notes (Claude, 20:05)
 

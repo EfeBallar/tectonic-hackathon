@@ -3,6 +3,7 @@
 // Code calculates, AI explains, the customer approves.
 
 import type { Customer } from "./population";
+import { masked } from "./sensitive";
 
 export type Pillar = "protect" | "support" | "guide";
 export type ProductLine = "banking" | "insurance" | "investment";
@@ -329,6 +330,7 @@ export const MOMENTS: MomentDef[] = [
     },
   },
   {
+    // Only from declared/administrative data (family file, child benefit), never inferred from spending.
     id: "new_dependent",
     label: "New family member",
     pillar: "guide",
@@ -460,8 +462,10 @@ export function projectedGap(c: Customer): number {
 
 export function detectAll(c: Customer): Detection[] {
   const out: Detection[] = [];
+  // Art. 9 blocklist: only fraud prevention sees sensitive merchant categories
+  const { view } = masked(c);
   for (const m of MOMENTS) {
-    const d = m.detect(c);
+    const d = m.detect(m.pillar === "protect" ? c : view);
     if (d) out.push(d);
   }
   return out;
@@ -469,8 +473,9 @@ export function detectAll(c: Customer): Detection[] {
 
 /** Moments we could detect but deliberately don't. Shown in the UI. */
 export const NOT_DETECTED: { label: string; why: string }[] = [
-  { label: "Pregnancy or health", why: "from pharmacy, doctor or baby shop payments" },
-  { label: "Religion or politics", why: "from donations or memberships" },
+  { label: "Pregnancy or health", why: "from pharmacy, doctor, hospital or baby shop payments" },
+  { label: "Religion, politics or union membership", why: "from donations, dues or memberships" },
+  { label: "Sexual orientation", why: "from memberships, events or apps" },
   { label: "Relationship breakups", why: "from split payments or a partner leaving a joint account" },
   { label: "Gambling-based targeting", why: "gambling signals may only trigger protective help, never offers" },
   { label: "Financial distress upsell", why: "a cash crunch never triggers a loan offer" },
