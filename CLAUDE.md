@@ -41,3 +41,4 @@ Use `HANDOFF_TO_CLAUDE.md` for the concrete integration sequence and known contr
 gaps. `docs/HANDOFF_NEXT_AGENT.md` contains the previous Claude session's additional
 notes; its claim that SSH is blocked is superseded by the successful fetch.
 Codex's current change is documentation only. Do not push without explicit approval.
+  
